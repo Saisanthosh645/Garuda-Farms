@@ -1,0 +1,6 @@
+{
+  "name": "Garuda Farms",
+  "description": "Premium farm-to-table Indian agricultural brand delivering 100% natural, farm-fresh eggs, meat, dairy, honey, grains, and produce.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

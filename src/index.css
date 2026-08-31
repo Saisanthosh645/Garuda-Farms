@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-heading: 'Cinzel', serif;
+    --font-display: 'Playfair Display', serif;
+    --font-sans: 'Plus Jakarta Sans', sans-serif;
+    --color-primary: #0f2d1f;
+    --color-primary-light: #1b4332;
+    --color-secondary: #2d6a4f;
+    --color-cream: #faf8f2;
+    --color-warm-white: #fdfbf7;
+    --color-earth: #8c6239;
+    --color-gold: #d4a373;
+    --color-gold-light: #e9c46a;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: #faf8f2;
+    color: #19241c;
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, .font-heading {
+    font-family: var(--font-heading);
+  }
+
+  .font-display {
+    font-family: var(--font-display);
+  }
+
+  .font-body {
+    font-family: var(--font-sans);
+  }
+}
+
+/* Custom 3D & Animation utilities */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
+/* Smooth custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f0eae1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2d6a4f;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #1b4332;
+}
+
+/* Glass & Glow utilities */
+.glass-panel-dark {
+  background: rgba(15, 45, 31, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(212, 163, 115, 0.2);
+}
+
+.glass-panel-light {
+  background: rgba(253, 251, 247, 0.85);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(220, 210, 195, 0.6);
+}
+
+/* Noise overlay */
+.bg-noise {
+  background-image: radial-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 0);
+  background-size: 24px 24px;
+}
+
+/* Text stroke */
+.text-stroke-gold {
+  -webkit-text-stroke: 1px rgba(212, 163, 115, 0.4);
+}
