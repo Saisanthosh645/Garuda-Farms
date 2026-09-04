@@ -22,6 +22,7 @@ import { CartDrawer } from './components/CartDrawer';
 import { WishlistDrawer } from './components/WishlistDrawer';
 import { SearchModal } from './components/SearchModal';
 import { CheckoutModal } from './components/CheckoutModal';
+import { AdminModal } from './components/AdminModal';
 
 // Micro-interactions & 3D Polish
 import { LoadingScreen } from './components/LoadingScreen';
@@ -65,6 +66,7 @@ export default function App() {
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
 
   // Toast feedback state
   const [cartToast, setCartToast] = useState<{
@@ -205,6 +207,7 @@ export default function App() {
         onOpenCartDrawer={() => setIsCartDrawerOpen(true)}
         onOpenWishlist={() => setIsWishlistOpen(true)}
         onOpenSearch={() => setIsSearchOpen(true)}
+        onOpenAdmin={() => setIsAdminOpen(true)}
       />
 
       {/* Main View Router */}
@@ -310,6 +313,7 @@ export default function App() {
           else if (sectionId === 'cart') navigateToView('cart');
           else navigateToView('home');
         }}
+        onOpenAdmin={() => setIsAdminOpen(true)}
       />
 
       {/* Live Cart Toast Notification */}
@@ -369,6 +373,12 @@ export default function App() {
         onOrderSuccess={() => {
           setCart([]);
         }}
+      />
+
+      {/* Admin Panel Modal */}
+      <AdminModal
+        isOpen={isAdminOpen}
+        onClose={() => setIsAdminOpen(false)}
       />
     </div>
   );

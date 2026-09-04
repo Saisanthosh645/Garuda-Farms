@@ -64,15 +64,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               {/* Header */}
               <div className="p-6 border-b border-[#EFE8DC] flex items-center justify-between bg-[#FAF8F2]">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-[#2D6A4F] text-[#FAF8F2] flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-full bg-[#2D6A4F]/10 flex items-center justify-center text-[#2D6A4F]">
                     <ShoppingBag className="w-5 h-5" />
                   </div>
                   <div>
-                    <h3 className="font-heading font-extrabold text-lg text-[#0F2D1F]">
+                    <h3 className="font-heading font-extrabold text-lg text-[#0F2D1F] leading-none">
                       Your Harvest Cart
                     </h3>
-                    <p className="text-xs text-[#8C6239] font-medium">
-                      {items.reduce((c, i) => c + i.quantity, 0)} Items from Garuda Sanctuary
+                    <p className="text-[11px] text-[#556960] font-medium mt-1">
+                      {items.reduce((c, i) => c + i.quantity, 0)} Items Added
                     </p>
                   </div>
                 </div>

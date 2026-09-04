@@ -42,15 +42,15 @@ export const WishlistDrawer: React.FC<WishlistDrawerProps> = ({
               {/* Header */}
               <div className="p-6 border-b border-[#EFE8DC] flex items-center justify-between bg-[#FAF8F2]">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-[#E76F51] text-[#FAF8F2] flex items-center justify-center">
-                    <Heart className="w-5 h-5 fill-current" />
+                  <div className="w-10 h-10 rounded-full bg-[#8C6239]/10 flex items-center justify-center text-[#8C6239]">
+                    <Heart className="w-5 h-5 fill-[#8C6239]" />
                   </div>
                   <div>
-                    <h3 className="font-heading font-extrabold text-lg text-[#0F2D1F]">
-                      Saved Farm Favorites
+                    <h3 className="font-heading font-extrabold text-lg text-[#0F2D1F] leading-none">
+                      Saved Favorites
                     </h3>
-                    <p className="text-xs text-[#8C6239] font-medium">
-                      {wishlistProducts.length} Items in Wishlist
+                    <p className="text-[11px] text-[#556960] font-medium mt-1">
+                      {wishlistProducts.length} Items Saved
                     </p>
                   </div>
                 </div>

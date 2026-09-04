@@ -43,8 +43,8 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onExploreProducts })
               className="absolute -bottom-8 -right-4 sm:-right-8 z-20 bg-[#FDFBF7] p-5 sm:p-6 rounded-2xl border border-[#DCD2C3] shadow-xl max-w-xs"
             >
               <div className="flex items-center gap-3 mb-2">
-                <div className="w-10 h-10 rounded-full bg-[#2D6A4F] text-[#FAF8F2] flex items-center justify-center font-black">
-                  🌱
+                <div className="w-10 h-10 rounded-full bg-[#2D6A4F]/10 flex items-center justify-center text-[#2D6A4F]">
+                  <Sprout className="w-5 h-5" />
                 </div>
                 <div>
                   <h5 className="font-heading font-bold text-sm text-[#0F2D1F]">
@@ -67,9 +67,9 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ onExploreProducts })
             transition={{ duration: 0.8, delay: 0.2 }}
             className="lg:col-span-6 space-y-6"
           >
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#2D6A4F]/10 text-[#2D6A4F] text-xs font-bold tracking-widest uppercase">
+            <span className="inline-block px-3.5 py-1.5 rounded-full bg-[#2D6A4F]/10 text-[#2D6A4F] text-xs font-bold tracking-widest uppercase">
               ABOUT GARUDA FARMS
-            </div>
+            </span>
 
             <h2 className="font-heading text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#0F2D1F] leading-tight tracking-tight">
               MORE THAN A FARM. <br />

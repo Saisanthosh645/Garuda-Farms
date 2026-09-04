@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Heart, ShoppingBag, Menu, X, ArrowRight, Sparkles } from 'lucide-react';
+import { Search, Heart, ShoppingBag, Menu, X, ArrowRight, Sparkles, ShieldCheck } from 'lucide-react';
+import { GarudaLogo } from './GarudaLogo';
 
 interface NavbarProps {
   activeView: string;
@@ -10,6 +11,7 @@ interface NavbarProps {
   onOpenCartDrawer: () => void;
   onOpenWishlist: () => void;
   onOpenSearch: () => void;
+  onOpenAdmin?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -20,6 +22,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenCartDrawer,
   onOpenWishlist,
   onOpenSearch,
+  onOpenAdmin,
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -60,27 +63,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           <button
             id="nav-logo-btn"
             onClick={() => handleNav('home')}
-            className="flex items-center gap-3 group text-left focus:outline-none cursor-pointer"
+            className="flex items-center text-left focus:outline-none cursor-pointer"
           >
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#D4A373] to-[#2D6A4F] p-[1.5px] transition-transform duration-300 group-hover:scale-105 shadow-md">
-              <div className="w-full h-full rounded-full bg-[#0F2D1F] flex items-center justify-center">
-                <svg width="22" height="22" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M14 38C14 26 24 16 32 10C26 22 28 32 14 38Z" fill="#D4A373" />
-                  <path d="M50 38C50 26 40 16 32 10C38 22 36 32 50 38Z" fill="#E9C46A" />
-                  <path d="M32 20V52" stroke="#52B788" strokeWidth="4" strokeLinecap="round" />
-                  <path d="M32 40C26 36 22 42 22 46C26 48 30 46 32 40Z" fill="#52B788" />
-                  <path d="M32 34C38 30 42 36 42 40C38 42 34 40 32 34Z" fill="#74C69D" />
-                </svg>
-              </div>
-            </div>
-            <div>
-              <span className="font-heading font-extrabold text-lg sm:text-xl tracking-[0.18em] text-[#FAF8F2] block leading-none">
-                GARUDA
-              </span>
-              <span className="text-[9px] tracking-[0.3em] font-bold text-[#D4A373] uppercase block mt-1">
-                FARMS SANCTUARY
-              </span>
-            </div>
+            <GarudaLogo variant="horizontal" theme="dark" size="md" />
           </button>
 
           {/* Desktop Navigation Links */}
@@ -115,6 +100,20 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Action Icons & "BUY NOW" Button */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Admin Console Trigger */}
+            {onOpenAdmin && (
+              <button
+                id="nav-admin-btn"
+                onClick={onOpenAdmin}
+                title="Admin Control Center"
+                aria-label="Open Admin Console"
+                className="p-2.5 rounded-full hover:bg-white/10 text-[#FAF8F2] transition-colors relative group"
+              >
+                <ShieldCheck className="w-4.5 h-4.5 group-hover:text-[#52B788] transition-colors" />
+                <span className="sr-only">Admin Console</span>
+              </button>
+            )}
+
             {/* Search */}
             <button
               id="nav-search-btn"
@@ -197,11 +196,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           >
             {/* Top Bar */}
             <div className="flex items-center justify-between border-b border-[#2D6A4F]/40 pb-4">
-              <div className="flex items-center gap-2">
-                <span className="font-heading font-extrabold text-xl tracking-wider text-[#FAF8F2]">
-                  GARUDA FARMS
-                </span>
-              </div>
+              <GarudaLogo variant="horizontal" theme="dark" size="sm" />
               <button
                 id="mobile-menu-close"
                 onClick={() => setMobileMenuOpen(false)}
@@ -246,6 +241,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>BUY NOW • EXPLORE ALL 50 HARVESTS</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
+              {onOpenAdmin && (
+                <button
+                  id="mobile-admin-btn"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onOpenAdmin();
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-[#FAF8F2] font-bold tracking-wider text-center text-xs flex items-center justify-center gap-2"
+                >
+                  <ShieldCheck className="w-4 h-4 text-[#52B788]" />
+                  <span>Admin Console & Database</span>
+                </button>
+              )}
               <div className="text-center text-[11px] text-[#FAF8F2]/60">
                 🌿 Farm-Gate Freshness • Express Morning Delivery
               </div>

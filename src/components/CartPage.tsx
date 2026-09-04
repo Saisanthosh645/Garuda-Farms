@@ -124,14 +124,18 @@ export const CartPage: React.FC<CartPageProps> = ({
 
         {/* Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-[#DCD2C3] mb-8">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#2D6A4F]/10 text-[#2D6A4F] text-xs font-bold uppercase tracking-wider mb-2">
-              <Sparkles className="w-3.5 h-3.5" />
-              DIRECT HARVEST CART
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-[#2D6A4F]/10 flex items-center justify-center text-[#2D6A4F] shrink-0">
+              <ShoppingBag className="w-6 h-6" />
             </div>
-            <h1 className="font-heading text-3xl sm:text-4xl font-extrabold text-[#0F2D1F] tracking-tight">
-              Review Your Fresh Harvest
-            </h1>
+            <div>
+              <h1 className="font-heading text-2xl sm:text-3xl font-extrabold text-[#0F2D1F] tracking-tight">
+                Review Your Fresh Harvest
+              </h1>
+              <p className="text-xs sm:text-sm text-[#556960] mt-0.5">
+                Single-origin produce prepared fresh from our fields
+              </p>
+            </div>
           </div>
 
           <button

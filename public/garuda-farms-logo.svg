@@ -1,0 +1,229 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="100%" height="100%">
+  <defs>
+    <!-- Brand Gradients -->
+    <linearGradient id="gf-gold-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C59A52" />
+      <stop offset="50%" stop-color="#DEB86A" />
+      <stop offset="100%" stop-color="#B2843A" />
+    </linearGradient>
+    <linearGradient id="gf-green-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#143423" />
+      <stop offset="100%" stop-color="#1B4D36" />
+    </linearGradient>
+    <filter id="gf-subtle-shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.1" />
+    </filter>
+  </defs>
+
+  <!-- Clean Warm Cream Background (Optional / transparent if desired, with default soft tint) -->
+  <rect width="800" height="800" fill="#FAF5EB" rx="32" />
+
+  <!-- EMBLEM GROUP (Centered at X=400, Y=270) -->
+  <g id="emblem-group" transform="translate(400, 260)">
+    <!-- Golden Sun Arc (Top Right Outer Circumference) -->
+    <path 
+      d="M -50 -165 C 40 -170 130 -120 160 -40 C 172 -10 172 30 155 70 C 148 50 152 10 142 -20 C 120 -85 50 -138 -30 -148 Z" 
+      fill="url(#gf-gold-grad)" 
+    />
+
+    <!-- Golden Farm Furrows / Plowed Fields (Lower Center Arc) -->
+    <!-- Ridge 1 (Bottom curve) -->
+    <path 
+      d="M -15 90 C 35 125 105 110 135 60 C 115 90 55 105 5 75 Z" 
+      fill="url(#gf-gold-grad)" 
+    />
+    <!-- Ridge 2 (Middle curve) -->
+    <path 
+      d="M -5 65 C 35 95 90 85 115 45 C 95 70 50 80 12 55 Z" 
+      fill="url(#gf-gold-grad)" 
+    />
+    <!-- Ridge 3 (Inner curve) -->
+    <path 
+      d="M 5 45 C 38 68 78 60 98 32 C 80 50 48 56 20 38 Z" 
+      fill="url(#gf-gold-grad)" 
+    />
+
+    <!-- Green Botanical Leaf Branch (Rising along lower right) -->
+    <!-- Stem -->
+    <path 
+      d="M 95 75 C 120 40 140 -5 152 -45" 
+      stroke="#1B4D36" 
+      stroke-width="5" 
+      stroke-linecap="round" 
+      fill="none" 
+    />
+    <!-- Leaf 1 (Top right tip) -->
+    <path d="M 152 -45 C 160 -65 170 -68 174 -48 C 170 -38 158 -38 152 -45 Z" fill="#205038" />
+    <!-- Leaf 2 (Upper left offshoot) -->
+    <path d="M 142 -30 C 125 -42 118 -55 132 -55 C 142 -50 142 -38 142 -30 Z" fill="#245A3E" />
+    <!-- Leaf 3 (Middle right offshoot) -->
+    <path d="M 134 -5 C 155 -15 170 -8 165 8 C 152 10 140 2 134 -5 Z" fill="#1B4D36" />
+    <!-- Leaf 4 (Lower left offshoot) -->
+    <path d="M 122 15 C 105 2 100 -12 112 -12 C 124 -7 125 6 122 15 Z" fill="#245A3E" />
+    <!-- Leaf 5 (Lower right offshoot) -->
+    <path d="M 112 38 C 130 32 144 40 138 52 C 128 54 118 46 112 38 Z" fill="#1B4D36" />
+
+    <!-- Garuda / Eagle Crest (Sweeping Head, Beak, and Majestic Wings) -->
+    <!-- Left Wing Feathers (Dynamic sweeping plumage) -->
+    <!-- Topmost Wing Feather -->
+    <path 
+      d="M -160 -155 C -135 -140 -90 -115 -60 -85 C -75 -105 -115 -135 -160 -155 Z" 
+      fill="#173E29" 
+    />
+    <path 
+      d="M -170 -130 C -130 -115 -80 -80 -45 -50 C -65 -75 -110 -105 -170 -130 Z" 
+      fill="#1A442E" 
+    />
+    <path 
+      d="M -175 -95 C -130 -80 -75 -45 -40 -15 C -65 -40 -115 -68 -175 -95 Z" 
+      fill="#143423" 
+    />
+    <path 
+      d="M -165 -60 C -125 -45 -70 -15 -35 15 C -60 -10 -110 -35 -165 -60 Z" 
+      fill="#1A442E" 
+    />
+    <path 
+      d="M -145 -25 C -110 -12 -65 15 -30 42 C -55 20 -100 -2 -145 -25 Z" 
+      fill="#173E29" 
+    />
+
+    <!-- Main Eagle Body & Head Silhouette -->
+    <path 
+      d="M -60 -85 C -30 -100 15 -105 45 -85 C 75 -65 92 -45 105 -20 C 112 -10 115 0 110 10 C 105 18 90 20 80 10 C 72 2 68 -12 55 -25 C 45 -35 30 -42 12 -42 C -5 -42 -22 -35 -38 -20 C -65 5 -75 45 -55 85 C -35 125 10 150 65 142 C 30 155 -25 150 -68 122 C -110 95 -135 50 -135 -5 C -135 -45 -115 -70 -60 -85 Z" 
+      fill="#143423" 
+    />
+
+    <!-- Eagle Head & Sharp Hooked Beak Detail -->
+    <!-- Neck & Crown -->
+    <path 
+      d="M 5 -75 C 25 -88 60 -85 82 -65 C 102 -48 112 -30 118 -8 C 110 -10 98 -15 88 -12 C 72 -7 60 5 50 18 C 42 28 32 38 18 40 C 28 25 35 10 32 -5 C 28 -20 18 -32 5 -42 C -8 -50 -5 -65 5 -75 Z" 
+      fill="#FAF5EB" 
+    />
+    <!-- Beak Hook (Dark Green) -->
+    <path 
+      d="M 85 -55 C 105 -48 122 -35 125 -15 C 127 5 118 18 108 20 C 115 10 118 -2 110 -15 C 105 -25 96 -32 85 -38 Z" 
+      fill="#143423" 
+    />
+    <!-- Eagle Eye (Sharp focused gaze) -->
+    <ellipse cx="65" cy="-35" rx="5" ry="3.5" transform="rotate(-15 65 -35)" fill="#143423" />
+    <circle cx="67" cy="-36" r="1.5" fill="#FAF5EB" />
+    <!-- Brow Line -->
+    <path d="M 52 -42 C 65 -45 78 -40 82 -35" stroke="#143423" stroke-width="2.5" stroke-linecap="round" fill="none" />
+  </g>
+
+  <!-- MAIN TYPOGRAPHY "GARUDA" -->
+  <g id="typography-garuda" transform="translate(400, 520)" text-anchor="middle">
+    <!-- Main Lettering (using Cinzel / Trajan serif style paths) -->
+    <text 
+      x="0" 
+      y="0" 
+      font-family="'Cinzel', 'Playfair Display', 'Times New Roman', serif" 
+      font-size="92" 
+      font-weight="800" 
+      letter-spacing="14" 
+      fill="#143423"
+    >
+      GARUDA
+    </text>
+
+    <!-- Golden Decorative Bridges over the A's -->
+    <!-- First 'A' at approx X = -142 -->
+    <path 
+      d="M -176 -28 C -162 -44 -128 -44 -114 -28 C -122 -32 -168 -32 -176 -28 Z" 
+      fill="url(#gf-gold-grad)" 
+    />
+    <!-- Second 'A' at approx X = 188 -->
+    <path 
+      d="M 154 -28 C 168 -44 202 -44 216 -28 C 208 -32 162 -32 154 -28 Z" 
+      fill="url(#gf-gold-grad)" 
+    />
+  </g>
+
+  <!-- SUB-TYPOGRAPHY "— FARMS —" -->
+  <g id="typography-farms" transform="translate(400, 585)" text-anchor="middle">
+    <!-- Left Thin Rule -->
+    <line x1="-290" y1="-8" x2="-140" y2="-8" stroke="#B8863A" stroke-width="2" stroke-linecap="round" />
+    
+    <!-- Word FARMS -->
+    <text 
+      x="12" 
+      y="0" 
+      font-family="'Cinzel', 'Playfair Display', 'Times New Roman', serif" 
+      font-size="44" 
+      font-weight="600" 
+      letter-spacing="24" 
+      fill="#B8863A"
+    >
+      FARMS
+    </text>
+
+    <!-- Right Thin Rule -->
+    <line x1="160" y1="-8" x2="310" y2="-8" stroke="#B8863A" stroke-width="2" stroke-linecap="round" />
+  </g>
+
+  <!-- VALUE PILLARS TAGLINE BAR -->
+  <g id="tagline-bar" transform="translate(400, 645)" text-anchor="middle">
+    <!-- Pillar 1: PURE BY NATURE -->
+    <g transform="translate(-230, 0)">
+      <!-- Leaf in Circle Icon -->
+      <circle cx="-16" cy="-5" r="14" fill="none" stroke="#143423" stroke-width="2" />
+      <path d="M -22 1 C -22 -9 -14 -13 -10 -13 C -10 -5 -14 1 -22 1 Z" fill="#143423" />
+      <path d="M -20 -1 C -17 -5 -11 -7 -10 -13" stroke="#FAF5EB" stroke-width="1.2" stroke-linecap="round" fill="none" />
+      <text 
+        x="8" 
+        y="0" 
+        font-family="'Plus Jakarta Sans', sans-serif" 
+        font-size="15" 
+        font-weight="700" 
+        letter-spacing="3" 
+        fill="#143423" 
+        text-anchor="start"
+      >
+        PURE BY NATURE
+      </text>
+    </g>
+
+    <!-- Divider 1 -->
+    <line x1="-50" y1="-16" x2="-50" y2="4" stroke="#D4A373" stroke-width="1.5" />
+
+    <!-- Pillar 2: ETHICAL BY CHOICE -->
+    <g transform="translate(0, 0)">
+      <!-- Shield Check Icon -->
+      <path d="M -22 -14 L -10 -18 L 2 -14 C 2 -4 -10 6 -10 6 C -10 6 -22 -4 -22 -14 Z" fill="none" stroke="#B8863A" stroke-width="2" />
+      <path d="M -15 -6 L -11 -2 L -5 -10" stroke="#B8863A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+      <text 
+        x="12" 
+        y="0" 
+        font-family="'Plus Jakarta Sans', sans-serif" 
+        font-size="15" 
+        font-weight="700" 
+        letter-spacing="3" 
+        fill="#143423" 
+        text-anchor="start"
+      >
+        ETHICAL BY CHOICE
+      </text>
+    </g>
+
+    <!-- Divider 2 -->
+    <line x1="170" y1="-16" x2="170" y2="4" stroke="#D4A373" stroke-width="1.5" />
+
+    <!-- Pillar 3: GROWN WITH CARE -->
+    <g transform="translate(220, 0)">
+      <!-- Hands / Heart Icon -->
+      <path d="M 0 -13 C -4 -18 -10 -15 -10 -10 C -10 -5 0 0 0 0 C 0 0 10 -5 10 -10 C 10 -15 4 -18 0 -13 Z" fill="none" stroke="#143423" stroke-width="2" />
+      <text 
+        x="22" 
+        y="0" 
+        font-family="'Plus Jakarta Sans', sans-serif" 
+        font-size="15" 
+        font-weight="700" 
+        letter-spacing="3" 
+        fill="#143423" 
+        text-anchor="start"
+      >
+        GROWN WITH CARE
+      </text>
+    </g>
+  </g>
+</svg>

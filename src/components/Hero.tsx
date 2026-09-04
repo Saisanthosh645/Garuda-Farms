@@ -226,7 +226,7 @@ export const Hero: React.FC<HeroProps> = ({ onBuyNow, onExploreFarm, onViewCart 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.15 }}
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#0F2D1F]/80 border border-[#D4A373]/50 text-[#D4A373] text-xs font-extrabold tracking-[0.2em] uppercase backdrop-blur-md mb-6 shadow-lg"
+          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#0F2D1F]/80 border border-[#D4A373]/50 text-[#D4A373] text-xs font-bold tracking-[0.2em] uppercase backdrop-blur-md mb-6 shadow-lg"
         >
           <Sparkles className="w-3.5 h-3.5 text-[#E9C46A]" />
           <span>100% NATURAL • SINGLE-ORIGIN HARVEST</span>

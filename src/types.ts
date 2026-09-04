@@ -89,11 +89,14 @@ export interface OrderDetails {
   address: string;
   city: string;
   pincode: string;
-  paymentMethod: 'UPI' | 'Card' | 'COD';
+  paymentMethod: 'UPI' | 'Card' | 'COD' | 'Razorpay' | 'TestPayment';
   items: CartItem[];
   subtotal: number;
   deliveryFee: number;
   discount: number;
   total: number;
   timestamp: string;
+  paymentStatus?: 'PAID' | 'PENDING' | 'COD';
+  razorpayPaymentId?: string;
+  razorpayOrderId?: string;
 }

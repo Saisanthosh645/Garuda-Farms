@@ -4,6 +4,7 @@ import { Search, SlidersHorizontal, Sparkles, X, Check, ShoppingBag, ArrowRight 
 import { PRODUCTS, CATEGORIES } from '../data/products';
 import { Product, ProductCategory } from '../types';
 import { ProductCard } from './ProductCard';
+import { api } from '../lib/api';
 
 interface ProductCatalogProps {
   wishlistIds: number[];
@@ -24,10 +25,21 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
   onViewCart,
   cartCount = 0,
 }) => {
+  const [catalogProducts, setCatalogProducts] = useState<Product[]>(PRODUCTS);
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory | 'All'>(initialCategory);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'rating'>('featured');
   const [organicOnly, setOrganicOnly] = useState(false);
+
+  useEffect(() => {
+    api.getProducts()
+      .then((data) => {
+        if (data && data.length > 0) {
+          setCatalogProducts(data);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (initialCategory) {
@@ -37,7 +49,7 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
 
   // Filter & Sort Logic
   const filteredProducts = useMemo(() => {
-    return PRODUCTS.filter((product) => {
+    return catalogProducts.filter((product) => {
       const matchesCategory =
         selectedCategory === 'All' || product.category === selectedCategory;
       const matchesSearch =

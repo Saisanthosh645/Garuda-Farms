@@ -1,42 +1,41 @@
 import React from 'react';
 import { Phone, Mail, MapPin, Instagram, Facebook, Youtube, ShieldCheck, Heart } from 'lucide-react';
+import { GarudaLogo } from './GarudaLogo';
 
 interface FooterProps {
   onNavigate: (sectionId: string) => void;
+  onOpenAdmin?: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
+export const Footer: React.FC<FooterProps> = ({ onNavigate, onOpenAdmin }) => {
   return (
     <footer id="footer" className="bg-[#0A1F15] text-[#FAF8F2] pt-20 pb-12 border-t border-[#1B4332] relative overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-10 lg:gap-12 pb-16 border-b border-white/10">
           {/* Brand Col */}
           <div className="lg:col-span-2 space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#D4A373] to-[#2D6A4F] p-[1.5px]">
-                <div className="w-full h-full rounded-full bg-[#0F2D1F] flex items-center justify-center">
-                  <svg width="22" height="22" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M14 38C14 26 24 16 32 10C26 22 28 32 14 38Z" fill="#D4A373" />
-                    <path d="M50 38C50 26 40 16 32 10C38 22 36 32 50 38Z" fill="#E9C46A" />
-                    <path d="M32 20V52" stroke="#52B788" strokeWidth="4" strokeLinecap="round" />
-                  </svg>
-                </div>
-              </div>
-              <div>
-                <span className="font-heading font-extrabold text-xl tracking-[0.18em] text-[#FAF8F2] block leading-none">
-                  GARUDA
-                </span>
-                <span className="text-[10px] tracking-[0.3em] font-semibold text-[#D4A373] uppercase block mt-1">
-                  FARMS
-                </span>
-              </div>
-            </div>
+            <GarudaLogo variant="horizontal" theme="dark" size="lg" />
 
             <p className="text-sm text-[#FAF8F2]/70 max-w-sm leading-relaxed">
               From Our Farm to Your Home. Pure, unadulterated, single-origin Indian agriculture raised in harmony with nature and ancient Vedic wisdom.
             </p>
 
-            <div className="flex items-center gap-3 pt-2">
+            {/* Brand Value Pillars from Logo */}
+            <div className="flex flex-wrap items-center gap-2.5 py-1 text-[11px] font-bold text-[#FAF8F2]/80">
+              <span className="flex items-center gap-1 text-[#52B788]">
+                <span>🌿</span> PURE BY NATURE
+              </span>
+              <span className="text-[#D4A373]/50">•</span>
+              <span className="flex items-center gap-1 text-[#D4A373]">
+                <span>🛡️</span> ETHICAL BY CHOICE
+              </span>
+              <span className="text-[#D4A373]/50">•</span>
+              <span className="flex items-center gap-1 text-[#FAF8F2]/90">
+                <span>🤝</span> GROWN WITH CARE
+              </span>
+            </div>
+
+            <div className="flex items-center gap-3 pt-1">
               <span className="px-3 py-1 rounded-full bg-[#143D2B] border border-[#2D6A4F] text-[11px] text-[#52B788] font-bold flex items-center gap-1.5">
                 <ShieldCheck className="w-3.5 h-3.5" /> FSSAI Lic. #13621014000382
               </span>
@@ -130,9 +129,21 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
         {/* Bottom copyright row */}
         <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#FAF8F2]/60">
           <p>© {new Date().getFullYear()} Garuda Farms Agro Pvt Ltd. All rights reserved.</p>
-          <div className="flex items-center gap-1">
-            <span>Crafted with reverence for nature and traditional farmers</span>
-            <Heart className="w-3.5 h-3.5 text-[#E76F51] fill-[#E76F51] inline ml-1" />
+          <div className="flex items-center gap-4">
+            {onOpenAdmin && (
+              <button
+                id="footer-admin-btn"
+                onClick={onOpenAdmin}
+                className="hover:text-[#52B788] transition-colors flex items-center gap-1 font-semibold underline underline-offset-4 decoration-[#52B788]/40"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-[#52B788]" />
+                <span>Admin Console</span>
+              </button>
+            )}
+            <div className="flex items-center gap-1">
+              <span>Crafted with reverence for nature and traditional farmers</span>
+              <Heart className="w-3.5 h-3.5 text-[#E76F51] fill-[#E76F51] inline ml-1" />
+            </div>
           </div>
         </div>
       </div>

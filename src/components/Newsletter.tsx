@@ -21,8 +21,7 @@ export const Newsletter: React.FC = () => {
     <section className="py-20 bg-[#FAF8F2] text-[#19241C] relative border-t border-[#E8DFC8]/60">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <div className="bg-[#FDFBF7] rounded-3xl p-8 sm:p-12 border border-[#DCD2C3] shadow-[0_8px_30px_rgba(15,45,31,0.05)] relative overflow-hidden">
-          {/* Subtle decoration */}
-          <div className="w-12 h-12 rounded-full bg-[#2D6A4F]/10 text-[#2D6A4F] flex items-center justify-center mx-auto mb-4">
+          <div className="w-12 h-12 rounded-full bg-[#2D6A4F]/10 flex items-center justify-center mx-auto mb-4 text-[#2D6A4F]">
             <Mail className="w-6 h-6" />
           </div>
 
