@@ -23,6 +23,10 @@ import { WishlistDrawer } from './components/WishlistDrawer';
 import { SearchModal } from './components/SearchModal';
 import { CheckoutModal } from './components/CheckoutModal';
 import { AdminModal } from './components/AdminModal';
+import { PoliciesModal, PolicyTab } from './components/PoliciesModal';
+import { TrackOrderModal } from './components/TrackOrderModal';
+import { ContactModal } from './components/ContactModal';
+import { WhatsAppButton } from './components/WhatsAppButton';
 
 // Micro-interactions & 3D Polish
 import { LoadingScreen } from './components/LoadingScreen';
@@ -67,6 +71,11 @@ export default function App() {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [isPoliciesOpen, setIsPoliciesOpen] = useState(false);
+  const [policyInitialTab, setPolicyInitialTab] = useState<PolicyTab>('shipping');
+  const [isTrackOrderOpen, setIsTrackOrderOpen] = useState(false);
+  const [trackOrderId, setTrackOrderId] = useState<string | undefined>(undefined);
+  const [isContactOpen, setIsContactOpen] = useState(false);
 
   // Toast feedback state
   const [cartToast, setCartToast] = useState<{
@@ -208,6 +217,10 @@ export default function App() {
         onOpenWishlist={() => setIsWishlistOpen(true)}
         onOpenSearch={() => setIsSearchOpen(true)}
         onOpenAdmin={() => setIsAdminOpen(true)}
+        onOpenTrackOrder={() => {
+          setTrackOrderId(undefined);
+          setIsTrackOrderOpen(true);
+        }}
       />
 
       {/* Main View Router */}
@@ -314,7 +327,19 @@ export default function App() {
           else navigateToView('home');
         }}
         onOpenAdmin={() => setIsAdminOpen(true)}
+        onOpenPolicies={(tab) => {
+          setPolicyInitialTab(tab);
+          setIsPoliciesOpen(true);
+        }}
+        onOpenTrackOrder={() => {
+          setTrackOrderId(undefined);
+          setIsTrackOrderOpen(true);
+        }}
+        onOpenContact={() => setIsContactOpen(true)}
       />
+
+      {/* Floating Direct WhatsApp Farm Help Button */}
+      <WhatsAppButton />
 
       {/* Live Cart Toast Notification */}
       <CartToast
@@ -363,7 +388,7 @@ export default function App() {
         onSelectProduct={(p) => setQuickViewProduct(p)}
       />
 
-      {/* Checkout Modal with Confetti & Receipt */}
+      {/* Checkout Modal with Confetti, Receipt & Seamless Payment */}
       <CheckoutModal
         isOpen={isCheckoutOpen}
         items={cart}
@@ -373,12 +398,39 @@ export default function App() {
         onOrderSuccess={() => {
           setCart([]);
         }}
+        onTrackOrder={(orderId) => {
+          setTrackOrderId(orderId);
+          setIsTrackOrderOpen(true);
+        }}
       />
 
       {/* Admin Panel Modal */}
       <AdminModal
         isOpen={isAdminOpen}
         onClose={() => setIsAdminOpen(false)}
+      />
+
+      {/* Legal & Trust Policies Modal (Shipping, Refunds, Certifications, Privacy, Terms) */}
+      <PoliciesModal
+        isOpen={isPoliciesOpen}
+        initialTab={policyInitialTab}
+        onClose={() => setIsPoliciesOpen(false)}
+      />
+
+      {/* Live Order Tracking & Chilled Dispatch Timeline Modal */}
+      <TrackOrderModal
+        isOpen={isTrackOrderOpen}
+        initialOrderId={trackOrderId}
+        onClose={() => {
+          setIsTrackOrderOpen(false);
+          setTrackOrderId(undefined);
+        }}
+      />
+
+      {/* Contact & Farm Sanctum Visit Booking Modal */}
+      <ContactModal
+        isOpen={isContactOpen}
+        onClose={() => setIsContactOpen(false)}
       />
     </div>
   );

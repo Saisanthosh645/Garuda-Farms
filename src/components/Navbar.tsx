@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, Heart, ShoppingBag, Menu, X, ArrowRight, Sparkles, ShieldCheck } from 'lucide-react';
+import { Search, Heart, ShoppingBag, Menu, X, ArrowRight, Sparkles, ShieldCheck, Truck } from 'lucide-react';
 import { GarudaLogo } from './GarudaLogo';
 
 interface NavbarProps {
@@ -12,6 +12,7 @@ interface NavbarProps {
   onOpenWishlist: () => void;
   onOpenSearch: () => void;
   onOpenAdmin?: () => void;
+  onOpenTrackOrder?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -23,6 +24,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenWishlist,
   onOpenSearch,
   onOpenAdmin,
+  onOpenTrackOrder,
 }) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -100,6 +102,20 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* Action Icons & "BUY NOW" Button */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {/* Track Order Live Dispatch */}
+            {onOpenTrackOrder && (
+              <button
+                id="nav-track-order-btn"
+                onClick={onOpenTrackOrder}
+                title="Track Live Dispatch"
+                aria-label="Track Live Order"
+                className="p-2.5 rounded-full hover:bg-white/10 text-[#FAF8F2] transition-colors relative group"
+              >
+                <Truck className="w-4.5 h-4.5 group-hover:text-[#52B788] transition-colors" />
+                <span className="sr-only">Track Order</span>
+              </button>
+            )}
+
             {/* Admin Console Trigger */}
             {onOpenAdmin && (
               <button
@@ -241,6 +257,19 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span>BUY NOW • EXPLORE ALL 50 HARVESTS</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
+              {onOpenTrackOrder && (
+                <button
+                  id="mobile-track-btn"
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    onOpenTrackOrder();
+                  }}
+                  className="w-full py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-[#FAF8F2] font-bold tracking-wider text-center text-xs flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Truck className="w-4 h-4 text-[#52B788]" />
+                  <span>Track Live Order / Dispatch</span>
+                </button>
+              )}
               {onOpenAdmin && (
                 <button
                   id="mobile-admin-btn"
