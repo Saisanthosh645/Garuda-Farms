@@ -756,13 +756,30 @@ function OrdersSection({ toast }: { toast: ReturnType<typeof useToast> }) {
   };
   useEffect(() => { load(); }, []);
 
-  const updateStatus = async (orderId: string, newStatus: string) => {
+  const updateStatus = async (orderId: string, orderStatus?: string, paymentStatus?: string) => {
     setUpdatingId(orderId);
-    const res = await api.updateOrderStatus(orderId, newStatus);
+    let targetPaymentStatus = paymentStatus;
+    const ord = orders.find((o) => o.id === orderId);
+
+    // Auto-mark payment as Paid when order status is marked Delivered for COD orders
+    if (orderStatus === 'Delivered' && !paymentStatus && (ord?.payment_status === 'Pending' || selectedOrder?.payment_status === 'Pending')) {
+      targetPaymentStatus = 'Paid';
+    }
+
+    const res = await api.updateOrderStatus(orderId, orderStatus, targetPaymentStatus);
     if (res.ok) {
-      toast.show('success', `Order #${orderId} → ${newStatus}`);
+      const label = targetPaymentStatus && !orderStatus
+        ? `Payment status → ${targetPaymentStatus}`
+        : `Order #${orderId} → ${orderStatus || 'Updated'}${targetPaymentStatus ? ` (Payment: ${targetPaymentStatus})` : ''}`;
+      toast.show('success', label);
       load();
-      if (selectedOrder?.id === orderId) setSelectedOrder({ ...selectedOrder, order_status: newStatus });
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder({
+          ...selectedOrder,
+          ...(orderStatus ? { order_status: orderStatus } : {}),
+          ...(targetPaymentStatus ? { payment_status: targetPaymentStatus } : {}),
+        });
+      }
     } else {
       toast.show('error', res.error || 'Status update failed');
     }
@@ -833,10 +850,37 @@ function OrdersSection({ toast }: { toast: ReturnType<typeof useToast> }) {
               {/* Payment */}
               <div>
                 <h4 className="text-xs font-bold text-stone-500 uppercase tracking-wider mb-2">Payment</h4>
-                <div className="bg-stone-50 rounded-xl p-3 space-y-1 text-sm">
-                  <div className="flex justify-between"><span>Method:</span><span className="font-semibold">{selectedOrder.payment_method}</span></div>
-                  <div className="flex justify-between"><span>Status:</span><StatusBadge status={selectedOrder.payment_status} /></div>
-                  {selectedOrder.razorpay_order_id && <div className="flex justify-between text-xs"><span>Razorpay Order:</span><span className="font-mono text-stone-600">{selectedOrder.razorpay_order_id}</span></div>}
+                <div className="bg-stone-50 rounded-xl p-3 space-y-2 text-sm">
+                  <div className="flex justify-between items-center">
+                    <span>Method:</span>
+                    <span className="font-semibold">{selectedOrder.payment_method}</span>
+                  </div>
+                  <div className="flex justify-between items-center gap-2">
+                    <span>Payment Status:</span>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={selectedOrder.payment_status || 'Pending'}
+                        onChange={(e) => updateStatus(selectedOrder.id, undefined, e.target.value)}
+                        disabled={updatingId === selectedOrder.id}
+                        className="px-2.5 py-1 rounded-lg border border-stone-200 text-xs font-bold bg-white focus:outline-none focus:border-[#2D6A4F] disabled:opacity-50"
+                      >
+                        <option value="Pending">Pending</option>
+                        <option value="Paid">Paid</option>
+                        <option value="Failed">Failed</option>
+                        <option value="Refunded">Refunded</option>
+                      </select>
+                      {selectedOrder.payment_status !== 'Paid' && (
+                        <button
+                          onClick={() => updateStatus(selectedOrder.id, undefined, 'Paid')}
+                          disabled={updatingId === selectedOrder.id}
+                          className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-sm cursor-pointer disabled:opacity-50"
+                        >
+                          ✓ Mark Paid
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  {selectedOrder.razorpay_order_id && <div className="flex justify-between text-xs pt-1 border-t border-stone-200"><span>Razorpay Order:</span><span className="font-mono text-stone-600">{selectedOrder.razorpay_order_id}</span></div>}
                   {selectedOrder.razorpay_payment_id && <div className="flex justify-between text-xs"><span>Payment ID:</span><span className="font-mono text-stone-600">{selectedOrder.razorpay_payment_id}</span></div>}
                 </div>
               </div>
@@ -899,7 +943,25 @@ function OrdersSection({ toast }: { toast: ReturnType<typeof useToast> }) {
                       <p className="text-[10px] text-stone-400">{ord.customer_phone}</p>
                     </td>
                     <td className="p-3 font-bold text-sm text-stone-900">₹{Number(ord.total_amount).toFixed(2)}</td>
-                    <td className="p-3"><StatusBadge status={ord.payment_method === 'COD' ? 'COD' : ord.payment_status} /></td>
+                    <td className="p-3">
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] font-bold text-stone-500 uppercase">{ord.payment_method}</span>
+                          <StatusBadge status={ord.payment_status} />
+                        </div>
+                        <select
+                          value={ord.payment_status || 'Pending'}
+                          onChange={(e) => updateStatus(ord.id, undefined, e.target.value)}
+                          disabled={updatingId === ord.id}
+                          className="px-2 py-0.5 rounded-md border border-stone-200 text-[11px] font-bold bg-white focus:outline-none focus:border-[#2D6A4F] disabled:opacity-50"
+                        >
+                          <option value="Pending">Pending</option>
+                          <option value="Paid">Paid</option>
+                          <option value="Failed">Failed</option>
+                          <option value="Refunded">Refunded</option>
+                        </select>
+                      </div>
+                    </td>
                     <td className="p-3">
                       <div className="flex items-center gap-1.5">
                         <select
