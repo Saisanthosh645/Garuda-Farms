@@ -8,22 +8,32 @@ import { Product } from '../types';
 interface FeaturedSpotlightProps {
   onAddToCart: (product: Product, weight?: string) => void;
   onQuickView: (product: Product) => void;
+  products?: Product[]; // Live products from API
 }
 
 export const FeaturedSpotlight: React.FC<FeaturedSpotlightProps> = ({
   onAddToCart,
   onQuickView,
+  products,
 }) => {
-  const eggProduct = PRODUCTS[0]; // Farm Fresh Eggs
-  const [selectedPack, setSelectedPack] = useState('12 Eggs');
+  // Use live API product for eggs (ID=1), fall back to static data
+  const sourceProducts = products && products.length > 0 ? products : PRODUCTS;
+  const eggProduct = sourceProducts.find((p) => p.id === 1) || sourceProducts[0];
+  const [selectedPack, setSelectedPack] = useState(eggProduct?.defaultWeight || '12 Eggs');
   const [isAdded, setIsAdded] = useState(false);
 
-  const priceMap: Record<string, number> = {
-    '6 Eggs': 65,
-    '12 Eggs': 120,
-    '30 Tray': 280,
+  // Build price map dynamically from the live product's weight/price data
+  const buildPriceMap = (): Record<string, number> => {
+    if (!eggProduct) return { '12 Eggs': 120 };
+    const weights = eggProduct.availableWeights || [];
+    const basePrice = Number(eggProduct.price);
+    const multipliers = [1, 1.8, 2.5];
+    const map: Record<string, number> = {};
+    weights.forEach((w, i) => { map[w] = Math.round(basePrice * (multipliers[i] || 1)); });
+    return map;
   };
-  const currentPrice = priceMap[selectedPack] || 120;
+  const priceMap = buildPriceMap();
+  const currentPrice = priceMap[selectedPack] || eggProduct?.price || 120;
 
   const handleAdd = () => {
     onAddToCart(eggProduct, selectedPack);
@@ -126,7 +136,7 @@ export const FeaturedSpotlight: React.FC<FeaturedSpotlightProps> = ({
                 Choose Pack Size
               </label>
               <div className="flex gap-3">
-                {['6 Eggs', '12 Eggs', '30 Tray'].map((pack) => (
+              {(eggProduct?.availableWeights || ['6 Eggs', '12 Eggs', '30 Tray']).map((pack) => (
                   <button
                     key={pack}
                     onClick={() => setSelectedPack(pack)}
@@ -146,14 +156,19 @@ export const FeaturedSpotlight: React.FC<FeaturedSpotlightProps> = ({
             <div className="pt-4 flex flex-col sm:flex-row items-center gap-4">
               <button
                 id="spotlight-add-cart-btn"
+                disabled={!eggProduct || eggProduct.stock === false}
                 onClick={handleAdd}
                 className={`w-full sm:w-auto px-8 py-4 rounded-full text-xs sm:text-sm font-extrabold tracking-widest uppercase transition-all duration-300 flex items-center justify-center gap-3 shadow-xl ${
-                  isAdded
+                  !eggProduct || eggProduct.stock === false
+                    ? 'bg-stone-700 text-stone-400 cursor-not-allowed shadow-none'
+                    : isAdded
                     ? 'bg-[#52B788] text-[#0F2D1F]'
                     : 'bg-gradient-to-r from-[#2D6A4F] to-[#52B788] hover:from-[#1B4332] hover:to-[#2D6A4F] text-[#FAF8F2] hover:scale-105 active:scale-95'
                 }`}
               >
-                {isAdded ? (
+                {!eggProduct || eggProduct.stock === false ? (
+                  <span>Currently Unavailable</span>
+                ) : isAdded ? (
                   <>
                     <Check className="w-4 h-4" />
                     <span>Added to Cart!</span>

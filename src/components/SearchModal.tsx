@@ -8,30 +8,36 @@ interface SearchModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectProduct: (product: Product) => void;
+  products?: Product[];
 }
 
 export const SearchModal: React.FC<SearchModalProps> = ({
   isOpen,
   onClose,
   onSelectProduct,
+  products,
 }) => {
   const [query, setQuery] = useState('');
   const [selectedCat, setSelectedCat] = useState<string>('All');
 
-  const results = useMemo(() => {
-    if (!query.trim() && selectedCat === 'All') return PRODUCTS.slice(0, 8); // show popular initial items
+  const sourceProducts = useMemo(() => {
+    return products && products.length > 0 ? products : PRODUCTS;
+  }, [products]);
 
-    return PRODUCTS.filter((p) => {
+  const results = useMemo(() => {
+    if (!query.trim() && selectedCat === 'All') return sourceProducts.slice(0, 8); // show popular initial items
+
+    return sourceProducts.filter((p) => {
       const matchCat = selectedCat === 'All' || p.category.toLowerCase() === selectedCat.toLowerCase();
       const matchQuery =
         !query.trim() ||
         p.name.toLowerCase().includes(query.toLowerCase()) ||
         p.category.toLowerCase().includes(query.toLowerCase()) ||
         p.description.toLowerCase().includes(query.toLowerCase()) ||
-        p.tags.some((t) => t.toLowerCase().includes(query.toLowerCase()));
+        (p.tags && p.tags.some((t) => t.toLowerCase().includes(query.toLowerCase())));
       return matchCat && matchQuery;
     });
-  }, [query, selectedCat]);
+  }, [query, selectedCat, sourceProducts]);
 
   return (
     <AnimatePresence>

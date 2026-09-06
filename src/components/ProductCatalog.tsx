@@ -9,6 +9,7 @@ import { api } from '../lib/api';
 interface ProductCatalogProps {
   wishlistIds: number[];
   initialCategory?: ProductCategory | 'All';
+  initialProducts?: Product[]; // Live products from API passed down from App
   onToggleWishlist: (product: Product) => void;
   onQuickView: (product: Product) => void;
   onAddToCart: (product: Product, weight?: string) => void;
@@ -19,24 +20,34 @@ interface ProductCatalogProps {
 export const ProductCatalog: React.FC<ProductCatalogProps> = ({
   wishlistIds,
   initialCategory = 'All',
+  initialProducts,
   onToggleWishlist,
   onQuickView,
   onAddToCart,
   onViewCart,
   cartCount = 0,
 }) => {
-  const [catalogProducts, setCatalogProducts] = useState<Product[]>(PRODUCTS);
+  // Start with live API products if provided, fall back to static seed data
+  const [catalogProducts, setCatalogProducts] = useState<Product[]>(
+    initialProducts && initialProducts.length > 0 ? initialProducts : PRODUCTS
+  );
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory | 'All'>(initialCategory);
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'rating'>('featured');
   const [organicOnly, setOrganicOnly] = useState(false);
 
   useEffect(() => {
+    // Re-sync when initialProducts prop changes (e.g. after admin changes and returns to store)
+    if (initialProducts && initialProducts.length > 0) {
+      setCatalogProducts(initialProducts);
+    }
+  }, [initialProducts]);
+
+  useEffect(() => {
+    // Also always do a fresh fetch from API to catch any changes
     api.getProducts()
       .then((data) => {
-        if (data && data.length > 0) {
-          setCatalogProducts(data);
-        }
+        if (data && data.length > 0) setCatalogProducts(data);
       })
       .catch(() => {});
   }, []);

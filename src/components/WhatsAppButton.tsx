@@ -4,7 +4,7 @@ import { MessageCircle, X } from 'lucide-react';
 export const WhatsAppButton: React.FC = () => {
   const [showTooltip, setShowTooltip] = useState(true);
 
-  const farmWhatsAppNumber = '919849012847';
+  const farmWhatsAppNumber = '919866929427';
   const prefilledMessage = encodeURIComponent(
     'Namaste Garuda Farms! I would like to inquire about fresh dawn harvests, A2 Bilona Ghee, and farm deliveries.'
   );

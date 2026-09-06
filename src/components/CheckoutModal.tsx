@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, 
@@ -18,6 +18,7 @@ import {
 import confetti from 'canvas-confetti';
 import { CartItem, OrderDetails } from '../types';
 import { api } from '../lib/api';
+import { calculateDeliveryFeeByPincode, PINCODE_DISTANCE_MAP } from '../lib/distance';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -42,18 +43,48 @@ function loadRazorpayScript(): Promise<boolean> {
       resolve(true);
       return;
     }
+
+    const checkWindowRazorpay = (maxRetries = 25): Promise<boolean> => {
+      return new Promise((res) => {
+        let count = 0;
+        const timer = setInterval(() => {
+          count++;
+          if (typeof window !== 'undefined' && window.Razorpay) {
+            clearInterval(timer);
+            res(true);
+          } else if (count >= maxRetries) {
+            clearInterval(timer);
+            res(false);
+          }
+        }, 100);
+      });
+    };
+
     const existing = document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]');
     if (existing) {
-      existing.addEventListener('load', () => resolve(true));
-      existing.addEventListener('error', () => resolve(false));
+      checkWindowRazorpay(25).then((loaded) => {
+        if (loaded) {
+          resolve(true);
+        } else {
+          existing.remove();
+          appendScript();
+        }
+      });
       return;
     }
-    const script = document.createElement('script');
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-    script.async = true;
-    script.onload = () => resolve(true);
-    script.onerror = () => resolve(false);
-    document.body.appendChild(script);
+
+    appendScript();
+
+    function appendScript() {
+      const script = document.createElement('script');
+      script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+      script.async = true;
+      script.onload = () => {
+        checkWindowRazorpay(15).then((success) => resolve(success));
+      };
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    }
   });
 }
 
@@ -69,20 +100,126 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [step, setStep] = useState<'details' | 'success'>('details');
   const [name, setName] = useState('Sai Santhosh');
   const [email, setEmail] = useState('raminisaisanthosh@gmail.com');
-  const [phone, setPhone] = useState('+91 98490 12345');
-  const [address, setAddress] = useState('Villa #14, Green Valley Enclave, Gachibowli');
-  const [city, setCity] = useState('Hyderabad');
-  const [pincode, setPincode] = useState('500032');
+  const [phone, setPhone] = useState('9866929427');
+  const [address, setAddress] = useState('Mudimyala, Chevella');
+  const [city, setCity] = useState('Rangareddy');
+  const [pincode, setPincode] = useState('501503');
   const [deliverySlot, setDeliverySlot] = useState('Tomorrow Morning (6:00 AM – 8:00 AM)');
   const [paymentMethod, setPaymentMethod] = useState<'Online' | 'COD'>('Online');
   const [confirmedOrder, setConfirmedOrder] = useState<OrderDetails | null>(null);
 
-  // Razorpay processing state
+  // Address book integration
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (isOpen) {
+      // CRITICAL: Always reset checkout step and confirmed order when modal opens.
+      // Without this, re-opening the modal after a successful order shows the
+      // previous order's success screen instead of a fresh checkout form.
+      setStep('details');
+      setConfirmedOrder(null);
+      setErrorMessage(null);
+      setIsProcessing(false);
+
+      (async () => {
+        try {
+          const [profRes, addrRes] = await Promise.all([
+            api.getProfile(),
+            api.getAddresses(),
+          ]);
+          if (profRes.ok && profRes.profile) {
+            if (profRes.profile.full_name) setName(profRes.profile.full_name);
+            if (profRes.profile.email) setEmail(profRes.profile.email);
+            if (profRes.profile.phone) setPhone(profRes.profile.phone);
+          }
+          if (addrRes.ok && Array.isArray(addrRes.addresses) && addrRes.addresses.length > 0) {
+            setSavedAddresses(addrRes.addresses);
+            const defaultAddr = addrRes.addresses.find((a: any) => a.is_default) || addrRes.addresses[0];
+            if (defaultAddr) {
+              if (defaultAddr.full_name) setName(defaultAddr.full_name);
+              if (defaultAddr.phone) setPhone(defaultAddr.phone);
+              setAddress(defaultAddr.address_line);
+              setCity(defaultAddr.city);
+              setPincode(defaultAddr.pincode);
+            }
+          }
+        } catch (e) {
+          console.warn('Checkout address prefill error:', e);
+        }
+      })();
+    }
+  }, [isOpen]);
+
+
+  // Razorpay processing & Delivery calculation state
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  const [deliveryInfo, setDeliveryInfo] = useState<{
+    distanceKm: number;
+    ratePerKm: number;
+    calculatedFee: number;
+    finalFee: number;
+    locationName: string;
+    isFreeDelivery: boolean;
+  }>({
+    distanceKm: 4,
+    ratePerKm: 10,
+    calculatedFee: 40,
+    finalFee: 40,
+    locationName: 'Mudimyala / Chevella Sanctuary',
+    isFreeDelivery: false,
+  });
+  const [deliveryError, setDeliveryError] = useState<string | null>(null);
+  const [isCheckingDelivery, setIsCheckingDelivery] = useState<boolean>(false);
+
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const deliveryFee = subtotal >= 500 || items.length === 0 ? 0 : 40;
+
+  // Dynamic server-side delivery fee calculation & PIN serviceability check effect
+  useEffect(() => {
+    const cleanPin = pincode.trim().replace(/\D/g, '');
+    if (cleanPin.length === 6) {
+      setIsCheckingDelivery(true);
+      api.calculateDeliveryFee(cleanPin, subtotal).then((res) => {
+        setIsCheckingDelivery(false);
+        if (res.ok && res.serviceable) {
+          setDeliveryInfo({
+            distanceKm: res.distanceKm || 0,
+            ratePerKm: res.ratePerKm || 10,
+            calculatedFee: res.calculatedFee || 0,
+            finalFee: res.finalFee !== undefined ? res.finalFee : (res.calculatedFee || 0),
+            locationName: res.locationName || '',
+            isFreeDelivery: Boolean(res.isFreeDelivery),
+          });
+          setDeliveryError(null);
+        } else {
+          setDeliveryError(res.error || 'Delivery is not available to this location.');
+        }
+      }).catch(() => {
+        setIsCheckingDelivery(false);
+        const localRes = calculateDeliveryFeeByPincode(cleanPin, subtotal);
+        if (PINCODE_DISTANCE_MAP[cleanPin]) {
+          setDeliveryInfo({
+            distanceKm: localRes.distanceKm,
+            ratePerKm: localRes.ratePerKm,
+            calculatedFee: localRes.calculatedFee,
+            finalFee: localRes.finalFee,
+            locationName: localRes.locationName,
+            isFreeDelivery: localRes.isFreeDelivery,
+          });
+          setDeliveryError(null);
+        } else {
+          setDeliveryError('Delivery is not available to this location.');
+        }
+      });
+    } else if (cleanPin.length > 0) {
+      setDeliveryError('Please enter a valid 6-digit PIN code.');
+    } else {
+      setDeliveryError(null);
+    }
+  }, [pincode, subtotal]);
+
+  const deliveryFee = deliveryError || items.length === 0 ? 0 : deliveryInfo.finalFee;
   const total = Math.max(1, subtotal + deliveryFee - discountAmount);
 
   // Save placed order helper
@@ -93,56 +230,6 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     } catch (e) {
       console.error('Failed to cache order to localStorage:', e);
     }
-  };
-
-  // Seamless Verified Online Payment Fallback
-  const executeVerifiedOnlineCheckout = async (orderRefId: string, testOrderId?: string) => {
-    const amountInPaise = Math.max(100, Math.round(total * 100));
-    const activeOrderId = testOrderId || `order_live_${Date.now().toString(36)}${Math.random().toString(36).substring(2, 6)}`;
-
-    const verifyRes = await api.simulateTestPayment({
-      amountInPaise,
-      order_id: activeOrderId,
-      receipt: `rcpt_${orderRefId}`,
-      custom_order_id: orderRefId,
-    });
-
-    if (!verifyRes.ok || !verifyRes.verified) {
-      throw new Error(verifyRes.error || 'Unable to finalize online transaction. Please choose Cash on Delivery.');
-    }
-
-    // Confetti celebration
-    confetti({
-      particleCount: 150,
-      spread: 80,
-      origin: { y: 0.6 },
-      colors: ['#2D6A4F', '#52B788', '#D4A373', '#E9C46A', '#0F2D1F'],
-    });
-
-    const newOrder: OrderDetails = {
-      orderId: orderRefId,
-      customerName: name,
-      email,
-      phone,
-      address,
-      city,
-      pincode,
-      paymentMethod: 'Razorpay',
-      paymentStatus: 'PAID',
-      razorpayPaymentId: verifyRes.razorpay_payment_id || `pay_${Date.now().toString(36)}`,
-      razorpayOrderId: verifyRes.razorpay_order_id || activeOrderId,
-      items,
-      subtotal,
-      deliveryFee,
-      discount: discountAmount,
-      total,
-      timestamp: new Date().toLocaleString(),
-    };
-
-    saveOrderToStorage(newOrder);
-    setConfirmedOrder(newOrder);
-    setStep('success');
-    onOrderSuccess();
   };
 
   // Handle Form Submission / Payment Trigger
@@ -156,86 +243,188 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       return;
     }
 
+    if (deliveryError) {
+      setErrorMessage(deliveryError);
+      return;
+    }
+
     const orderReferenceId = `GF-${Math.floor(10000 + Math.random() * 90000)}`;
 
     // CASH ON DELIVERY FLOW
     if (paymentMethod === 'COD') {
-      confetti({
-        particleCount: 120,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#2D6A4F', '#52B788', '#D4A373', '#E9C46A', '#0F2D1F'],
-      });
+      setIsProcessing(true);
+      try {
+        const res = await api.createCodOrder({
+          customerName: name,
+          email,
+          phone,
+          address,
+          city,
+          pincode,
+          orderId: orderReferenceId,
+          deliverySlot,
+          items: items.map((it) => ({ product_id: it.product.id, quantity: it.quantity, selected_weight: it.selectedWeight })),
+          subtotal,
+          deliveryFee,
+          discount: discountAmount,
+          total,
+          paymentMethod: 'COD',
+        });
 
-      const newOrder: OrderDetails = {
-        orderId: orderReferenceId,
-        customerName: name,
-        email,
-        phone,
-        address,
-        city,
-        pincode,
-        paymentMethod: 'COD',
-        paymentStatus: 'COD',
-        items,
-        subtotal,
-        deliveryFee,
-        discount: discountAmount,
-        total,
-        timestamp: new Date().toLocaleString(),
-      };
-
-      saveOrderToStorage(newOrder);
-      setConfirmedOrder(newOrder);
-      setStep('success');
-      onOrderSuccess();
+        if (res && res.ok) {
+          const created: OrderDetails = {
+            orderId: res.orderId || orderReferenceId,
+            customerName: name,
+            email,
+            phone,
+            address,
+            city,
+            pincode,
+            paymentMethod: 'COD',
+            paymentStatus: 'COD',
+            items,
+            subtotal,
+            deliveryFee,
+            discount: discountAmount,
+            total,
+            timestamp: new Date().toLocaleString(),
+          };
+          saveOrderToStorage(created);
+          setConfirmedOrder(created);
+          setStep('success');
+          onOrderSuccess();
+        } else {
+          setErrorMessage(res?.error || 'Could not create COD order. Please try again later.');
+        }
+      } catch (e: any) {
+        setErrorMessage(e.message || 'Could not create COD order.');
+      } finally {
+        setIsProcessing(false);
+      }
       return;
     }
 
-    // ONLINE PAYMENT FLOW (Razorpay with Seamless Auto-Recovery)
+    // ONLINE PAYMENT FLOW (Razorpay Standard Checkout)
     setIsProcessing(true);
 
     try {
-      const amountInPaise = Math.max(100, Math.round(total * 100));
-
-      // 1. Check if backend generates an active order
+      // 1. Create order on backend with authoritative pricing
       let orderData: any = null;
       try {
-        orderData = await api.createRazorpayOrder(
-          amountInPaise,
-          'INR',
-          `rcpt_${orderReferenceId}_${Date.now()}`,
-          {
+        orderData = await api.createRazorpayOrder({
+          items: items.map((it) => ({
+            product_id: it.product.id,
+            quantity: it.quantity,
+            selected_weight: it.selectedWeight,
+          })),
+          couponCode: couponCode || undefined,
+          receipt: `rcpt_${orderReferenceId}_${Date.now()}`,
+          notes: {
             customerName: name,
             email,
             phone,
             orderReferenceId,
             deliverySlot,
-          }
-        );
+          },
+        });
       } catch (err) {
-        console.warn('Razorpay order creation fallback active:', err);
+        console.error('[Razorpay] Order creation error:', err);
       }
 
-      // If Razorpay API key is expired or unconfigured on the server,
-      // seamlessly execute verified online payment so the customer never encounters errors!
-      if (!orderData || !orderData.ok || !orderData.order_id || orderData.is_key_expired) {
-        await executeVerifiedOnlineCheckout(orderReferenceId, orderData?.order_id);
+      // If server failed to create a Razorpay order, inform the client.
+      if (!orderData || !orderData.ok || !orderData.order_id) {
+        console.error('[Razorpay] Order creation failed:', orderData);
+        setErrorMessage(orderData?.error || 'Payment gateway is currently unavailable. Please try Cash on Delivery or try again later.');
+        setIsProcessing(false);
+        return;
+      }
+
+      console.log('[Razorpay] Order created:', orderData.order_id, 'Amount:', orderData.amount);
+
+      // Handle simulated test payment mode (when Razorpay test keys in .env are unauthenticated)
+      if (orderData.isSimulated) {
+        console.log('[Razorpay Simulation] Completing simulated test order:', orderData.order_id);
+        const simPayId = `pay_sim_${Date.now()}`;
+        const verifyRes = await api.verifyRazorpayPayment({
+          razorpay_order_id: orderData.order_id,
+          razorpay_payment_id: simPayId,
+          razorpay_signature: 'simulated_signature',
+          custom_order_id: orderReferenceId,
+          orderPayload: {
+            customerName: name,
+            email,
+            phone,
+            address,
+            city,
+            pincode,
+            deliverySlot,
+            items: items.map((it) => ({ product_id: it.product.id, quantity: it.quantity, selected_weight: it.selectedWeight })),
+            subtotal,
+            deliveryFee,
+            discount: discountAmount,
+            total,
+          },
+        });
+
+        if (verifyRes.ok && verifyRes.verified) {
+          confetti({
+            particleCount: 150,
+            spread: 80,
+            origin: { y: 0.6 },
+            colors: ['#2D6A4F', '#52B788', '#D4A373', '#E9C46A', '#0F2D1F'],
+          });
+
+          const newOrder: OrderDetails = {
+            orderId: verifyRes.orderId || orderReferenceId,
+            customerName: name,
+            email,
+            phone,
+            address,
+            city,
+            pincode,
+            paymentMethod: 'Razorpay',
+            paymentStatus: 'PAID',
+            razorpayPaymentId: simPayId,
+            razorpayOrderId: orderData.order_id,
+            items,
+            subtotal,
+            deliveryFee,
+            discount: discountAmount,
+            total,
+            timestamp: new Date().toLocaleString(),
+          };
+
+          saveOrderToStorage(newOrder);
+          setConfirmedOrder(newOrder);
+          setStep('success');
+          onOrderSuccess();
+        } else {
+          setErrorMessage(verifyRes.error || 'Payment verification failed.');
+        }
+        setIsProcessing(false);
         return;
       }
 
       // Ensure Razorpay SDK script is loaded
       const isLoaded = await loadRazorpayScript();
       if (!isLoaded || !window.Razorpay) {
-        // If script CDN fails, complete seamlessly
-        await executeVerifiedOnlineCheckout(orderReferenceId, orderData.order_id);
+        setErrorMessage('Payment gateway script failed to load. Please try again later or select Cash on Delivery.');
+        setIsProcessing(false);
         return;
       }
 
       const razorpayKeyId =
         orderData.key_id ||
-        import.meta.env.VITE_RAZORPAY_KEY_ID ||
-        'rzp_test_TXrc6nnKy01jiq';
+        import.meta.env.VITE_RAZORPAY_KEY_ID;
+
+      if (!razorpayKeyId) {
+        setErrorMessage('Payment gateway key not configured. Please contact support.');
+        setIsProcessing(false);
+        return;
+      }
+
+      // Clean phone number: extract last 10 digits for Razorpay prefill
+      const cleanPhone = phone.replace(/[^0-9]/g, '').slice(-10);
 
       // 2. Configure Razorpay Standard Checkout Options
       const options = {
@@ -244,12 +433,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         currency: orderData.currency || 'INR',
         name: 'Garuda Farms',
         description: '100% Pure Vedic & Organic Farm Harvest Order',
-        image: '/garuda-farms-logo.svg',
         order_id: orderData.order_id,
         prefill: {
           name: name.trim(),
           email: email.trim(),
-          contact: phone.replace(/[^0-9+]/g, ''),
+          contact: cleanPhone,
         },
         notes: {
           orderReference: orderReferenceId,
@@ -258,13 +446,13 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         },
         theme: {
           color: '#2D6A4F',
-          backdrop_color: '#0F2D1F',
         },
         handler: async function (response: {
           razorpay_payment_id: string;
           razorpay_order_id: string;
           razorpay_signature: string;
         }) {
+          console.log('[Razorpay] Payment success callback received:', response.razorpay_payment_id);
           setIsProcessing(true);
           try {
             const verifyRes = await api.verifyRazorpayPayment({
@@ -272,7 +460,23 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               razorpay_payment_id: response.razorpay_payment_id,
               razorpay_signature: response.razorpay_signature,
               custom_order_id: orderReferenceId,
+              orderPayload: {
+                customerName: name,
+                email,
+                phone,
+                address,
+                city,
+                pincode,
+                deliverySlot,
+                items: items.map((it) => ({ product_id: it.product.id, quantity: it.quantity, selected_weight: it.selectedWeight })),
+                subtotal,
+                deliveryFee,
+                discount: discountAmount,
+                total,
+              },
             });
+
+            console.log('[Razorpay] Verify response:', verifyRes);
 
             if (verifyRes.ok && verifyRes.verified) {
               confetti({
@@ -283,7 +487,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               });
 
               const newOrder: OrderDetails = {
-                orderId: orderReferenceId,
+                orderId: verifyRes.orderId || orderReferenceId,
                 customerName: name,
                 email,
                 phone,
@@ -307,18 +511,19 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               setStep('success');
               onOrderSuccess();
             } else {
-              // Fallback to seamless confirmation
-              await executeVerifiedOnlineCheckout(orderReferenceId, response.razorpay_order_id);
+              console.error('[Razorpay] Verification failed:', verifyRes);
+              setErrorMessage(verifyRes.error || 'Payment verification failed. Please contact support or try another payment method.');
             }
           } catch (verifyErr: any) {
-            console.error('Payment verification fallback:', verifyErr);
-            await executeVerifiedOnlineCheckout(orderReferenceId, response.razorpay_order_id);
+            console.error('[Razorpay] Payment verification error:', verifyErr);
+            setErrorMessage('Payment verification error. Please try again or contact support.');
           } finally {
             setIsProcessing(false);
           }
         },
         modal: {
           ondismiss: function () {
+            console.log('[Razorpay] Modal dismissed by user');
             setIsProcessing(false);
           },
         },
@@ -326,33 +531,27 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
       const rzp = new window.Razorpay(options);
 
-      rzp.on('payment.failed', async function (response: any) {
-        console.warn('Razorpay payment notification:', response.error);
-        const desc = response.error?.description || '';
-        // If the key is expired on razorpay servers, seamlessly fulfill the customer order
-        if (
-          desc.toLowerCase().includes('expired') ||
-          desc.toLowerCase().includes('api key') ||
-          desc.toLowerCase().includes('key and secret') ||
-          desc.toLowerCase().includes('authentication')
-        ) {
-          await executeVerifiedOnlineCheckout(orderReferenceId, orderData.order_id);
+      rzp.on('payment.failed', function (response: any) {
+        console.error('[Razorpay] Payment failed:', response.error);
+        const code = response.error?.code || '';
+        const desc = response.error?.description || response.error?.reason || '';
+        
+        if (code === 'BAD_REQUEST_ERROR' || desc.includes('Unauthorized') || desc.includes('key')) {
+          setErrorMessage('Razorpay Key Error (401): The test key in .env is invalid or revoked. Please update RAZORPAY_KEY_ID in .env with valid keys from dashboard.razorpay.com, or select Cash on Delivery.');
         } else {
-          setErrorMessage(desc || 'Payment could not be processed. Please select Cash on Delivery.');
-          setIsProcessing(false);
+          setErrorMessage(desc || 'Payment failed or cancelled. Please try again or select Cash on Delivery.');
         }
+        setIsProcessing(false);
       });
 
       rzp.open();
+
+      // Release button loading state — Razorpay modal is now in control
+      setIsProcessing(false);
     } catch (err: any) {
-      console.error('Checkout flow fallback triggered:', err);
-      // Seamlessly execute verified online payment on any unexpected gateway failure
-      try {
-        await executeVerifiedOnlineCheckout(orderReferenceId);
-      } catch (fallbackErr: any) {
-        setErrorMessage(fallbackErr.message || 'Payment processing failed. Please select Cash on Delivery.');
-        setIsProcessing(false);
-      }
+      console.error('[Razorpay] Checkout flow error:', err);
+      setErrorMessage('An unexpected error occurred during checkout. Please try again or select Cash on Delivery.');
+      setIsProcessing(false);
     }
   };
 
@@ -468,6 +667,32 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     </div>
                   </div>
 
+                  {savedAddresses.length > 0 && (
+                    <div className="space-y-1.5 bg-[#FAF8F2] p-3 rounded-xl border border-[#E5DEC9]">
+                      <label className="text-[10px] font-bold uppercase text-[#8C6239] block">
+                        Select Saved Address ({savedAddresses.length})
+                      </label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {savedAddresses.map((addr) => (
+                          <button
+                            type="button"
+                            key={addr.id}
+                            onClick={() => {
+                              if (addr.full_name) setName(addr.full_name);
+                              if (addr.phone) setPhone(addr.phone);
+                              setAddress(addr.address_line);
+                              setCity(addr.city);
+                              setPincode(addr.pincode);
+                            }}
+                            className="px-2.5 py-1 rounded-lg text-xs font-bold bg-white border border-[#DCD2C3] hover:border-[#2D6A4F] text-[#0F2D1F] transition-all"
+                          >
+                            📍 {addr.label} ({addr.city})
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div>
                     <label className="text-[11px] font-bold uppercase text-[#8C6239] block mb-1">
                       Street / Villa Address
@@ -496,17 +721,44 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     </div>
                     <div>
                       <label className="text-[11px] font-bold uppercase text-[#8C6239] block mb-1">
-                        Pincode
+                        Pincode {isCheckingDelivery && <span className="text-[#2D6A4F] animate-pulse lowercase font-normal">(verifying...)</span>}
                       </label>
                       <input
                         required
                         type="text"
+                        maxLength={6}
                         value={pincode}
                         onChange={(e) => setPincode(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#DCD2C3] text-sm text-[#0F2D1F] focus:outline-none focus:border-[#2D6A4F]"
+                        className={`w-full px-3.5 py-2.5 rounded-xl bg-white border text-sm text-[#0F2D1F] focus:outline-none ${
+                          deliveryError ? 'border-red-500 ring-2 ring-red-500/20' : 'border-[#DCD2C3] focus:border-[#2D6A4F]'
+                        }`}
+                        placeholder="e.g. 500032"
                       />
                     </div>
                   </div>
+
+                  {/* Delivery Serviceability Alert / Location Banner */}
+                  {deliveryError && (
+                    <div className="mt-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-start gap-2">
+                      <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+                      <div>
+                        <strong className="block text-red-800 font-bold">Delivery Unavailable</strong>
+                        <span>{deliveryError}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {!deliveryError && deliveryInfo.locationName && (
+                    <div className="mt-2 p-2.5 rounded-xl bg-[#2D6A4F]/10 border border-[#2D6A4F]/20 text-[#2D6A4F] text-xs font-semibold flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 truncate mr-2">
+                        <Truck className="w-4 h-4 shrink-0 text-[#2D6A4F]" />
+                        <span className="truncate">📍 {deliveryInfo.locationName}</span>
+                      </div>
+                      <span className="bg-white/90 px-2 py-0.5 rounded text-[11px] font-bold shrink-0 shadow-xs">
+                        {deliveryInfo.distanceKm} km @ ₹{deliveryInfo.ratePerKm}/km
+                      </span>
+                    </div>
+                  )}
 
                   <div>
                     <label className="text-[11px] font-bold uppercase text-[#8C6239] block mb-1">
@@ -632,9 +884,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         <span>Items Total</span>
                         <span className="font-bold text-[#0F2D1F]">₹{subtotal}</span>
                       </div>
-                      <div className="flex justify-between">
-                        <span>Chilled Farm Dispatch</span>
-                        <span>{deliveryFee === 0 ? 'FREE' : `₹${deliveryFee}`}</span>
+                      <div className="flex justify-between items-center">
+                        <span>Delivery ({deliveryInfo.distanceKm} km @ ₹{deliveryInfo.ratePerKm}/km)</span>
+                        <span className="font-bold">
+                          {deliveryError ? (
+                            <span className="text-red-600 font-bold">Unavailable</span>
+                          ) : deliveryFee === 0 ? (
+                            <span className="text-[#2D6A4F] font-extrabold px-1.5 py-0.5 rounded bg-[#2D6A4F]/10">FREE</span>
+                          ) : (
+                            `₹${deliveryFee}`
+                          )}
+                        </span>
                       </div>
                       {discountAmount > 0 && (
                         <div className="flex justify-between text-[#2D6A4F] font-bold">
@@ -654,13 +914,23 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <button
                       id="place-order-submit-btn"
                       type="submit"
-                      disabled={isProcessing}
+                      disabled={isProcessing || Boolean(deliveryError) || isCheckingDelivery}
                       className="w-full py-4 rounded-2xl text-[#FAF8F2] text-xs font-extrabold tracking-widest uppercase shadow-xl hover:scale-[1.01] active:scale-98 transition-all flex items-center justify-center gap-2 bg-gradient-to-r from-[#2D6A4F] to-[#52B788] hover:from-[#1B4332] hover:to-[#2D6A4F] disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     >
                       {isProcessing ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
                           <span>PROCESSING SECURE PAYMENT...</span>
+                        </>
+                      ) : isCheckingDelivery ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>VERIFYING PINCODE SERVICEABILITY...</span>
+                        </>
+                      ) : deliveryError ? (
+                        <>
+                          <AlertCircle className="w-4 h-4" />
+                          <span>DELIVERY NOT AVAILABLE TO THIS PINCODE</span>
                         </>
                       ) : paymentMethod === 'Online' ? (
                         <>
@@ -781,7 +1051,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                 )}
 
                 <a
-                  href={`https://wa.me/919849012847?text=Hi%20Garuda%20Farms%2C%20I%20just%20placed%20order%20%23${confirmedOrder?.orderId}.%20Please%20send%20me%20dispatch%20updates.`}
+                  href={`https://wa.me/919866929427?text=Hi%20Garuda%20Farms%2C%20I%20just%20placed%20order%20%23${confirmedOrder?.orderId}.%20Please%20send%20me%20dispatch%20updates.`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-5 py-3 rounded-full bg-[#25D366] hover:bg-[#20bd5a] text-white text-xs font-bold uppercase tracking-wider transition-all shadow-md flex items-center gap-2 cursor-pointer"

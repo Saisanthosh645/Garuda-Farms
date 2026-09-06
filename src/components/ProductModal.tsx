@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Star, Heart, ShoppingBag, Check, ShieldCheck, Sparkles, Plus, Minus, MapPin } from 'lucide-react';
 import { Product } from '../types';
+import { ReviewModal } from './ReviewModal';
+import { api } from '../lib/api';
 
 interface ProductModalProps {
   product: Product | null;
@@ -23,6 +25,23 @@ export const ProductModal: React.FC<ProductModalProps> = ({
   const [selectedWeight, setSelectedWeight] = useState(product.defaultWeight);
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [reviewsList, setReviewsList] = useState<any[]>([]);
+
+  const fetchReviews = async () => {
+    try {
+      const res = await api.getProductReviews(product.id);
+      if (res.ok && res.reviews) {
+        setReviewsList(res.reviews);
+      }
+    } catch (e) {
+      console.warn('Failed to fetch reviews:', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchReviews();
+  }, [product.id]);
 
   const weightIndex = product.availableWeights.indexOf(selectedWeight);
   const multiplier = weightIndex > 0 ? (weightIndex === 1 ? 1.8 : 2.5) : 1;
@@ -209,14 +228,19 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   {/* Add to Cart CTA */}
                   <button
                     id="modal-add-cart-btn"
+                    disabled={product.stock === false}
                     onClick={handleAdd}
                     className={`flex-1 py-3.5 rounded-xl text-xs font-extrabold tracking-widest uppercase transition-all duration-300 flex items-center justify-center gap-2 shadow-md ${
-                      isAdded
+                      product.stock === false
+                        ? 'bg-stone-300 text-stone-500 cursor-not-allowed shadow-none'
+                        : isAdded
                         ? 'bg-[#52B788] text-[#0F2D1F]'
                         : 'bg-[#2D6A4F] hover:bg-[#1B4332] text-[#FAF8F2] hover:scale-[1.02] active:scale-98'
                     }`}
                   >
-                    {isAdded ? (
+                    {product.stock === false ? (
+                      <span>Currently Unavailable</span>
+                    ) : isAdded ? (
                       <>
                         <Check className="w-4 h-4" />
                         <span>Added to Cart!</span>
@@ -232,8 +256,76 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               </div>
             </div>
           </div>
-        </motion.div>
-      </div>
+
+          {/* Customer Reviews & Star Ratings Section */}
+          <div className="p-6 bg-[#FAF8F2] border-t border-[#E5DEC9] space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-heading font-bold text-base text-[#0F2D1F] flex items-center gap-2">
+                    <span>Verified Customer Reviews</span>
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-[#2D6A4F]/10 text-[#2D6A4F] font-bold">
+                      ★ {product.rating} / 5 ({product.reviews} Ratings)
+                    </span>
+                  </h4>
+                </div>
+                <button
+                  onClick={() => setIsReviewModalOpen(true)}
+                  className="px-3.5 py-2 rounded-xl bg-[#2D6A4F] hover:bg-[#1B4332] text-white text-xs font-bold transition-all shadow-sm cursor-pointer"
+                >
+                  Write a Review
+                </button>
+              </div>
+
+              {/* Reviews List */}
+              <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
+                {reviewsList.length === 0 ? (
+                  <p className="text-xs text-[#556960] italic py-2">
+                    Be the first patron to leave a verified review for {product.name}!
+                  </p>
+                ) : (
+                  reviewsList.map((rev) => (
+                    <div key={rev.id} className="p-3.5 rounded-xl bg-white border border-[#DCD2C3] space-y-1.5 text-xs shadow-sm">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <strong className="text-[#0F2D1F] font-bold">{rev.customer_name}</strong>
+                          {rev.is_verified_purchase && (
+                            <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold flex items-center gap-1">
+                              ✓ Verified Purchase
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-0.5 text-amber-400">
+                          {[...Array(rev.rating)].map((_, i) => (
+                            <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                          ))}
+                        </div>
+                      </div>
+                      {rev.title && <h5 className="font-bold text-[#0F2D1F]">{rev.title}</h5>}
+                      <p className="text-[#556960] leading-relaxed">{rev.comment}</p>
+                      {rev.photo_url && (
+                        <img
+                          src={rev.photo_url}
+                          alt="Customer review upload"
+                          className="w-16 h-16 rounded-lg object-cover border border-[#DCD2C3] mt-1"
+                        />
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Review Modal */}
+        <ReviewModal
+          isOpen={isReviewModalOpen}
+          product={product}
+          onClose={() => setIsReviewModalOpen(false)}
+          onSuccess={() => {
+            fetchReviews();
+          }}
+        />
     </AnimatePresence>
   );
 };

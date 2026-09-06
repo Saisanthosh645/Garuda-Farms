@@ -51,7 +51,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
                   Farm Sanctum & Gaushala Visits
                 </h3>
                 <p className="text-xs text-[#FAF8F2]/70">
-                  Chevella Valley Natural Sanctuary, Telangana
+                  Mudimyala, Chevella, Rangareddy, Telangana 501503
                 </p>
               </div>
             </div>
@@ -67,7 +67,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
             {/* Quick Contact Bar */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <a
-                href="tel:+919849012847"
+                href="tel:+919866929427"
                 className="p-3.5 rounded-2xl bg-white border border-[#DCD2C3] hover:border-[#2D6A4F] transition-all flex items-center gap-3 group"
               >
                 <div className="w-9 h-9 rounded-xl bg-emerald-50 group-hover:bg-[#2D6A4F] text-[#2D6A4F] group-hover:text-white flex items-center justify-center transition-colors shrink-0">
@@ -75,7 +75,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-[#8C6239] block">Call Sanctum</span>
-                  <strong className="text-xs text-[#0F2D1F] block">+91 98490 12847</strong>
+                  <strong className="text-xs text-[#0F2D1F] block">+91 98669 29427</strong>
                 </div>
               </a>
 
@@ -93,7 +93,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
               </a>
 
               <a
-                href="https://maps.google.com/?q=Chevella+Telangana"
+                href="https://maps.google.com/?q=Mudimyala+Chevella+Rangareddy+501503"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="p-3.5 rounded-2xl bg-white border border-[#DCD2C3] hover:border-[#2D6A4F] transition-all flex items-center gap-3 group"
@@ -103,7 +103,7 @@ export const ContactModal: React.FC<ContactModalProps> = ({ isOpen, onClose }) =
                 </div>
                 <div>
                   <span className="text-[10px] uppercase font-bold text-[#8C6239] block">GPS Navigation</span>
-                  <strong className="text-xs text-[#0F2D1F] block">Chevella Valley, TS</strong>
+                  <strong className="text-xs text-[#0F2D1F] block">Mudimyala, Chevella, TS</strong>
                 </div>
               </a>
             </div>

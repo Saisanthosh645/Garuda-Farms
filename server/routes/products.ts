@@ -3,6 +3,7 @@ import { getSupabase } from '../db/supabase';
 import { requireAdmin } from '../middleware/auth';
 import { PRODUCTS } from '../../src/data/products';
 import { slugify } from '../db/seed';
+import { auditLog } from './admin';
 
 const router = Router();
 
@@ -27,7 +28,8 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
       }
 
       if (active_only !== 'false') {
-        query = query.eq('is_active', true);
+        // Storefront: only show active AND in-stock products
+        query = query.eq('is_active', true).eq('is_in_stock', true);
       }
 
       if (search) {
@@ -72,6 +74,7 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
           nutritionHighlights: p.nutrition_highlights || [],
         }));
 
+        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
         res.json({
           ok: true,
           count: formatted.length,
@@ -84,6 +87,11 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
 
     // Fallback to in-memory 50 products if Supabase not configured or query errored
     let list = [...localProducts];
+
+    if (active_only !== 'false') {
+      // Storefront: hide unavailable products in local fallback too
+      list = list.filter((p) => p.stock !== false);
+    }
 
     if (category && category !== 'All') {
       list = list.filter((p) => p.category === category);
@@ -158,7 +166,7 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
             defaultWeight: data.default_weight,
             badge: data.badge,
             farmOrigin: data.farm_origin,
-            stock: data.is_in_stock,
+            stock: Boolean(data.is_in_stock && data.is_active),
             stockQuantity: data.stock_quantity,
             featured: data.is_featured,
             organicCert: data.organic_cert,
@@ -194,35 +202,62 @@ router.post('/', requireAdmin, async (req: Request, res: Response): Promise<void
 
     if (client) {
       const slug = `${slugify(body.name)}-${Date.now().toString().slice(-4)}`;
-      const { data, error } = await client
+
+      // Fetch the max current product ID to prevent primary key sequence collision
+      const { data: maxRows } = await client
         .from('products')
-        .insert({
-          slug,
-          name: body.name,
-          category: body.category,
-          short_description: body.short_description || body.description?.slice(0, 120),
-          description: body.description || body.name,
-          image: body.image || 'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?auto=format&fit=crop&w=800&q=80',
-          price: body.price,
-          original_price: body.originalPrice || body.price,
-          available_weights: body.availableWeights || ['1kg'],
-          default_weight: body.defaultWeight || '1kg',
-          farm_origin: body.farmOrigin || 'Garuda Sanctuary, Chevella',
-          is_in_stock: body.stock !== false,
-          stock_quantity: body.stockQuantity || 50,
-          is_featured: Boolean(body.featured),
-          badge: body.badge || null,
-          tags: body.tags || [],
-          nutrition_highlights: body.nutritionHighlights || [],
-        })
+        .select('id')
+        .order('id', { ascending: false })
+        .limit(1);
+
+      const maxId = maxRows && maxRows.length > 0 ? Number(maxRows[0].id) : 0;
+      const nextId = maxId + 1;
+
+      const productPayload: any = {
+        id: nextId,
+        slug,
+        name: body.name,
+        category: body.category,
+        short_description: body.short_description || body.description?.slice(0, 120),
+        description: body.description || body.name,
+        image: body.image || 'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?auto=format&fit=crop&w=800&q=80',
+        price: body.price,
+        original_price: body.originalPrice || body.price,
+        available_weights: body.availableWeights || ['1kg'],
+        default_weight: body.defaultWeight || '1kg',
+        farm_origin: body.farmOrigin || 'Garuda Sanctuary, Chevella',
+        is_in_stock: body.stock !== false,
+        stock_quantity: body.stockQuantity || 50,
+        is_featured: Boolean(body.featured),
+        badge: body.badge || null,
+        tags: body.tags || [],
+        nutrition_highlights: body.nutritionHighlights || [],
+      };
+
+      let { data, error } = await client
+        .from('products')
+        .insert(productPayload)
         .select()
         .single();
+
+      // Retry fallback without explicit ID if sequence was fixed, or with fallback ID
+      if (error && (error.code === '23505' || error.message.includes('products_pkey'))) {
+        delete productPayload.id;
+        const retry = await client
+          .from('products')
+          .insert(productPayload)
+          .select()
+          .single();
+        data = retry.data;
+        error = retry.error;
+      }
 
       if (error) {
         res.status(400).json({ ok: false, error: error.message });
         return;
       }
 
+      await auditLog(req.user.email, 'product.create', 'product', String(data.id), { name: data.name, price: data.price });
       res.status(201).json({ ok: true, product: data, message: 'Product created successfully.' });
       return;
     }
@@ -273,7 +308,11 @@ router.put('/:id', requireAdmin, async (req: Request, res: Response): Promise<vo
       if (body.badge !== undefined) updates.badge = body.badge;
       if (body.featured !== undefined) updates.is_featured = Boolean(body.featured);
       if (body.description !== undefined) updates.description = body.description;
+      if (body.shortDescription !== undefined) updates.short_description = body.shortDescription;
       if (body.image !== undefined) updates.image = body.image;
+      if (body.availableWeights !== undefined) updates.available_weights = body.availableWeights;
+      if (body.defaultWeight !== undefined) updates.default_weight = body.defaultWeight;
+      if (body.farmOrigin !== undefined) updates.farm_origin = body.farmOrigin;
       updates.updated_at = new Date().toISOString();
 
       const { data, error } = await client
@@ -288,6 +327,18 @@ router.put('/:id', requireAdmin, async (req: Request, res: Response): Promise<vo
         return;
       }
 
+      // Keep local memory mirror updated as well
+      const localIdx = localProducts.findIndex((p) => p.id === id);
+      if (localIdx !== -1) {
+        localProducts[localIdx] = {
+          ...localProducts[localIdx],
+          stock: Boolean(data.is_in_stock && data.is_active),
+          price: Number(data.price),
+          name: data.name,
+        };
+      }
+
+      await auditLog(req.user.email, 'product.update', 'product', String(id), updates);
       res.json({ ok: true, product: data, message: 'Product updated in Supabase.' });
       return;
     }

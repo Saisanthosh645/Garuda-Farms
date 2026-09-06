@@ -219,9 +219,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </div>
 
             <div className="text-right">
-              <span className="text-[10px] uppercase font-bold text-[#52B788] block">
-                ● In Stock
-              </span>
+              {product.stock === false ? (
+                <span className="text-[10px] uppercase font-bold text-amber-700 block">
+                  ● Out of Stock
+                </span>
+              ) : (
+                <span className="text-[10px] uppercase font-bold text-[#52B788] block">
+                  ● In Stock
+                </span>
+              )}
               <span className="text-[10px] text-[#889B92]">Cold Packed</span>
             </div>
           </div>
@@ -229,14 +235,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           {/* Add to Cart Button */}
           <button
             id={`product-add-btn-${product.id}`}
+            disabled={product.stock === false}
             onClick={handleAdd}
             className={`w-full py-3 rounded-xl text-xs font-bold tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-2 shadow-sm ${
-              isAdded
+              product.stock === false
+                ? 'bg-stone-300 text-stone-500 cursor-not-allowed shadow-none'
+                : isAdded
                 ? 'bg-[#52B788] text-[#0F2D1F] scale-98'
                 : 'bg-[#2D6A4F] hover:bg-[#1B4332] text-[#FAF8F2] hover:shadow-md active:scale-95'
             }`}
           >
-            {isAdded ? (
+            {product.stock === false ? (
+              <span>Currently Unavailable</span>
+            ) : isAdded ? (
               <>
                 <Check className="w-4 h-4" />
                 <span>Added to Cart!</span>

@@ -79,6 +79,44 @@ CREATE TABLE IF NOT EXISTS customers (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 5. USER PROFILES (Recommended: map to Supabase auth.users.id)
+-- This table is separate from the legacy `customers` table and is intended
+-- to store profile information mapped to Supabase auth user IDs.
+CREATE TABLE IF NOT EXISTS profiles (
+    id UUID PRIMARY KEY, -- should equal auth.users.id (Supabase)
+    full_name TEXT NOT NULL,
+    phone TEXT,
+    email TEXT NOT NULL,
+    dob DATE,
+    gender TEXT DEFAULT 'Prefer not to say',
+    avatar_url TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable Row Level Security for profiles and create simple owner policy
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+-- Allow owners to select and update their own profiles
+CREATE POLICY "profiles_select_own" ON profiles FOR SELECT USING (auth.uid() = id::text);
+CREATE POLICY "profiles_update_own" ON profiles FOR UPDATE USING (auth.uid() = id::text) WITH CHECK (auth.uid() = id::text);
+
+-- 5b. CUSTOMER ADDRESSES (Dedicated address book for authenticated users)
+CREATE TABLE IF NOT EXISTS customer_addresses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL, -- references auth.users.id
+    full_name TEXT NOT NULL,
+    phone TEXT NOT NULL,
+    address_line TEXT NOT NULL,
+    city TEXT NOT NULL,
+    state TEXT NOT NULL DEFAULT 'Telangana',
+    pincode TEXT NOT NULL,
+    label TEXT NOT NULL DEFAULT 'Home', -- 'Home', 'Work', 'Other'
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+
 -- 5. INVENTORY LOGS (Audit trail for stock adjustments)
 CREATE TABLE IF NOT EXISTS inventory_logs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -109,6 +147,7 @@ CREATE TABLE IF NOT EXISTS coupons (
 -- 7. ORDERS TABLE (Server-verified source of truth)
 CREATE TABLE IF NOT EXISTS orders (
     id TEXT PRIMARY KEY, -- e.g. GF-12345
+    auth_id UUID, -- Supabase auth.users.id of the ordering user (for RLS)
     customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
     customer_name TEXT NOT NULL,
     customer_email TEXT NOT NULL,
@@ -136,6 +175,51 @@ CREATE TABLE IF NOT EXISTS orders (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 7b. ORDER STATUS HISTORY (Audit trail for tracking timeline)
+CREATE TABLE IF NOT EXISTS order_status_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    status TEXT NOT NULL,
+    changed_by TEXT,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 11. SUPPORT TICKETS
+CREATE TABLE IF NOT EXISTS support_tickets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL, -- references auth.users.id
+    subject TEXT NOT NULL,
+    category TEXT DEFAULT 'General',
+    message TEXT NOT NULL,
+    order_id TEXT REFERENCES orders(id) ON DELETE SET NULL,
+    status TEXT NOT NULL DEFAULT 'Open', -- 'Open', 'In Progress', 'Resolved', 'Closed'
+    admin_reply TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 12. CUSTOMER NOTIFICATIONS
+CREATE TABLE IF NOT EXISTS customer_notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL, -- references auth.users.id
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    type TEXT DEFAULT 'system', -- 'system', 'order', 'promo'
+    order_id TEXT REFERENCES orders(id) ON DELETE SET NULL,
+    read BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Row Level Security on orders: customers can select their own orders
+ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
+-- Allow selecting orders where auth.uid() = customer_id
+-- Note: customer_id should be stored as UUID text matching auth.uid()
+CREATE POLICY "orders_select_own" ON orders FOR SELECT USING (customer_id::text = auth.uid());
+-- Prevent customers from updating sensitive fields; allow updates only via server/service role
+CREATE POLICY "orders_no_client_update" ON orders FOR UPDATE USING (false);
+
+
 -- 8. ORDER ITEMS TABLE
 CREATE TABLE IF NOT EXISTS order_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -146,6 +230,26 @@ CREATE TABLE IF NOT EXISTS order_items (
     unit_price NUMERIC(10,2) NOT NULL,
     quantity INT NOT NULL,
     total_price NUMERIC(10,2) NOT NULL
+);
+
+-- 8b. WISHLIST ITEMS (User-saved product wishlist)
+CREATE TABLE IF NOT EXISTS wishlist_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL, -- references auth.users.id
+    product_id INT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, product_id)
+);
+
+-- 8c. AUDIT LOGS
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    actor_email TEXT NOT NULL,
+    action TEXT NOT NULL,
+    resource_type TEXT,
+    resource_id TEXT,
+    details JSONB,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 9. LEADS & CONTACT INQUIRIES

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight, Sparkles, Tag, Check } from 'lucide-react';
 import { CartItem } from '../types';
+import { api } from '../lib/api';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -21,24 +22,50 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onProceedToCheckout,
 }) => {
   const [couponInput, setCouponInput] = useState('');
-  const [couponApplied, setCouponApplied] = useState(false);
+  const [appliedCouponCode, setAppliedCouponCode] = useState(''); // store code string, not just boolean
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [calculatedDiscount, setCalculatedDiscount] = useState(0);
   const [couponError, setCouponError] = useState('');
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const freeShippingThreshold = 500;
   const deliveryFee = subtotal >= freeShippingThreshold || items.length === 0 ? 0 : 40;
-  const discountAmount = couponApplied ? Math.round(subtotal * 0.1) : 0;
-  const total = subtotal + deliveryFee - discountAmount;
+  const discountAmount = appliedCouponCode ? (calculatedDiscount || Math.round(subtotal * 0.1)) : 0;
+  const total = Math.max(0, subtotal + deliveryFee - discountAmount);
 
-  const handleApplyCoupon = (e: React.FormEvent) => {
+  const handleApplyCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (couponInput.toUpperCase() === 'GARUDA10' || couponInput.toUpperCase() === 'NATURE10') {
-      setCouponApplied(true);
-      setCouponError('');
-    } else {
-      setCouponError('Invalid coupon. Try "GARUDA10"');
+    setCouponError('');
+    const code = couponInput.toUpperCase().trim();
+    if (!code) return;
+
+    setValidatingCoupon(true);
+    try {
+      const res = await api.validateSmartCoupon({
+        code,
+        subtotal,
+        items: items.map((it) => ({
+          product_id: it.product.id,
+          category: it.product.category,
+          price: it.price,
+          quantity: it.quantity,
+        })),
+      });
+
+      if (res.ok && res.discountAmount !== undefined) {
+        setAppliedCouponCode(res.coupon?.code || code);
+        setCalculatedDiscount(res.discountAmount);
+        setCouponError('');
+      } else {
+        setCouponError(res.error || `Invalid coupon code "${code}".`);
+      }
+    } catch (err: any) {
+      setCouponError(err.message || 'Error validating coupon.');
+    } finally {
+      setValidatingCoupon(false);
     }
   };
+
 
   return (
     <AnimatePresence>
@@ -185,34 +212,55 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               {items.length > 0 && (
                 <div className="p-6 border-t border-[#EFE8DC] bg-[#FAF8F2] space-y-4">
                   {/* Promo Code Input */}
-                  <form onSubmit={handleApplyCoupon} className="flex gap-2">
-                    <div className="relative flex-1">
-                      <Tag className="w-3.5 h-3.5 text-[#8C6239] absolute left-3 top-1/2 -translate-y-1/2" />
-                      <input
-                        type="text"
-                        placeholder="Coupon code (e.g. GARUDA10)"
-                        value={couponInput}
-                        onChange={(e) => setCouponInput(e.target.value)}
-                        disabled={couponApplied}
-                        className="w-full pl-8 pr-3 py-2 text-xs rounded-xl bg-[#FDFBF7] border border-[#DCD2C3] uppercase font-bold focus:outline-none focus:border-[#2D6A4F]"
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      disabled={couponApplied || !couponInput}
-                      className="px-4 py-2 rounded-xl bg-[#2D6A4F] text-[#FAF8F2] text-xs font-bold disabled:opacity-50"
-                    >
-                      {couponApplied ? 'Applied' : 'Apply'}
-                    </button>
-                  </form>
+                  {(() => {
+                    const couponApplied = !!appliedCouponCode;
+                    return (
+                      <>
+                        <form onSubmit={handleApplyCoupon} className="flex gap-2">
+                          <div className="relative flex-1">
+                            <Tag className="w-3.5 h-3.5 text-[#8C6239] absolute left-3 top-1/2 -translate-y-1/2" />
+                            <input
+                              type="text"
+                              placeholder="Coupon code (e.g. GARUDA10)"
+                              value={couponInput}
+                              onChange={(e) => setCouponInput(e.target.value)}
+                              disabled={couponApplied}
+                              className="w-full pl-8 pr-3 py-2 text-xs rounded-xl bg-[#FDFBF7] border border-[#DCD2C3] uppercase font-bold focus:outline-none focus:border-[#2D6A4F]"
+                            />
+                          </div>
+                          <button
+                            type="submit"
+                            disabled={couponApplied || !couponInput || validatingCoupon}
+                            className="px-4 py-2 rounded-xl bg-[#2D6A4F] text-[#FAF8F2] text-xs font-bold disabled:opacity-50 flex items-center gap-1.5"
+                          >
+                            {validatingCoupon ? 'Validating...' : couponApplied ? 'Applied' : 'Apply'}
+                          </button>
+                        </form>
 
-                  {couponApplied && (
-                    <div className="text-[11px] text-[#2D6A4F] font-bold flex items-center gap-1">
-                      <Check className="w-3.5 h-3.5" /> 10% Farm Patron Discount Active
-                    </div>
-                  )}
+                        {couponApplied && (
+                          <div className="text-[11px] text-[#2D6A4F] font-bold flex items-center justify-between bg-emerald-50 border border-emerald-200 p-2 rounded-xl">
+                            <span className="flex items-center gap-1">
+                              <Check className="w-3.5 h-3.5 text-emerald-600" /> Coupon "{appliedCouponCode}" Active (-₹{discountAmount})
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAppliedCouponCode('');
+                                setCalculatedDiscount(0);
+                                setCouponInput('');
+                                setCouponError('');
+                              }}
+                              className="text-[10px] text-red-600 underline font-semibold hover:text-red-800"
+                            >
+                              Remove
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                   {couponError && (
-                    <div className="text-[11px] text-[#E76F51] font-semibold">
+                    <div className="text-[11px] text-[#E76F51] font-semibold bg-red-50 border border-red-200 p-2 rounded-xl">
                       {couponError}
                     </div>
                   )}
@@ -252,7 +300,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   <button
                     id="cart-proceed-checkout-btn"
                     onClick={() => {
-                      onProceedToCheckout(discountAmount, couponApplied ? couponInput.toUpperCase() : '');
+                      onProceedToCheckout(discountAmount, appliedCouponCode);
                     }}
                     className="w-full py-4 rounded-xl bg-gradient-to-r from-[#2D6A4F] to-[#52B788] hover:from-[#1B4332] hover:to-[#2D6A4F] text-[#FAF8F2] text-xs font-extrabold tracking-widest uppercase shadow-lg flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-98 transition-all"
                   >

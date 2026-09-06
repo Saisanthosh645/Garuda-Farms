@@ -3,17 +3,28 @@ import { motion, AnimatePresence } from 'motion/react';
 import { GarudaLogo } from './GarudaLogo';
 
 interface LoadingScreenProps {
-  onLoaded: () => void;
+  onLoaded?: () => void;
+  // legacy prop name used in App.tsx
+  onLoadingComplete?: () => void;
 }
 
-export const LoadingScreen: React.FC<LoadingScreenProps> = ({ onLoaded }) => {
+export const LoadingScreen: React.FC<LoadingScreenProps> = ({ onLoaded, onLoadingComplete }) => {
   const [stage, setStage] = useState<'growing' | 'branding' | 'complete'>('growing');
 
   useEffect(() => {
     const t1 = setTimeout(() => setStage('branding'), 700);
     const t2 = setTimeout(() => {
       setStage('complete');
-      onLoaded();
+      try {
+        onLoaded?.();
+      } catch (e) {
+        console.warn('[LoadingScreen] onLoaded handler threw');
+      }
+      try {
+        onLoadingComplete?.();
+      } catch (e) {
+        console.warn('[LoadingScreen] onLoadingComplete handler threw');
+      }
     }, 1700);
 
     return () => {

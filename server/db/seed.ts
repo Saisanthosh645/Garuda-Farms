@@ -1,4 +1,3 @@
-import bcrypt from 'bcryptjs';
 import { SupabaseClient } from '@supabase/supabase-js';
 import { PRODUCTS, CATEGORIES } from '../../src/data/products';
 
@@ -22,8 +21,8 @@ export function slugify(text: string): string {
 }
 
 export async function seedDatabase(client: SupabaseClient): Promise<SeedResult> {
-  const adminEmail = process.env.ADMIN_EMAIL || 'admin@garudafarms.com';
-  const adminPassword = process.env.ADMIN_PASSWORD || 'GarudaAdmin@2026!';
+  // Admins should be created and managed via Supabase Auth dashboard.
+  // Do not create admin passwords in seed scripts.
 
   // 1. Seed / Upsert Categories
   const categoryRecords = CATEGORIES.filter(c => c.name !== 'All').map((cat, idx) => ({
@@ -89,42 +88,11 @@ export async function seedDatabase(client: SupabaseClient): Promise<SeedResult> 
     throw new Error(`Failed to seed products: ${prodError.message}`);
   }
 
-  // 3. Initialize Single Admin User (Enforcing exactly ONE admin account)
-  const salt = await bcrypt.genSalt(10);
-  const passwordHash = await bcrypt.hash(adminPassword, salt);
-
-  // Check if admin already exists
-  const { data: existingAdmins } = await client
-    .from('admin_users')
-    .select('id, email')
-    .limit(1);
-
+  // 3. Admin account must be created in Supabase Auth manually in production.
+  // The seed process will NOT create or seed admin passwords. Ensure an admin
+  // user is created via the Supabase Dashboard and optionally mirrored in
+  // the `admin_users` table with a `user_id` mapping.
   let adminCreated = false;
-  if (!existingAdmins || existingAdmins.length === 0) {
-    const { error: adminError } = await client
-      .from('admin_users')
-      .insert({
-        email: adminEmail.toLowerCase().trim(),
-        password_hash: passwordHash,
-        name: 'Garuda Admin',
-      });
-
-    if (adminError) {
-      throw new Error(`Failed to create admin user: ${adminError.message}`);
-    }
-    adminCreated = true;
-  } else {
-    // If admin already exists, update email/password if configured
-    const currentAdminId = existingAdmins[0].id;
-    await client
-      .from('admin_users')
-      .update({
-        email: adminEmail.toLowerCase().trim(),
-        password_hash: passwordHash,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', currentAdminId);
-  }
 
   // 4. Default Store Settings
   const defaultSettings = [
@@ -134,7 +102,7 @@ export async function seedDatabase(client: SupabaseClient): Promise<SeedResult> 
         store_name: 'Garuda Farms',
         tagline: 'Pure by Nature • Ethical by Choice • Grown with Care',
         support_email: 'support@garudafarms.com',
-        support_phone: '+91 98490 12345',
+        support_phone: '+91 98669 29427',
         currency: 'INR',
         currency_symbol: '₹',
       },

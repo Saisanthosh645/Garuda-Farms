@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ShoppingBag, 
@@ -19,6 +19,7 @@ import {
   HelpCircle
 } from 'lucide-react';
 import { CartItem, Product } from '../types';
+import { api } from '../lib/api';
 
 interface CartPageProps {
   items: CartItem[];
@@ -29,13 +30,6 @@ interface CartPageProps {
   onProceedToCheckout: (appliedDiscount: number, couponCode: string, deliverySlot: string, farmNote: string) => void;
 }
 
-const AVAILABLE_COUPONS = [
-  { code: 'GARUDA10', desc: '10% OFF on all farm harvests', minSpend: 0, discountRate: 0.10 },
-  { code: 'FREESHIP', desc: 'Free Delivery on any order', minSpend: 0, freeShipping: true },
-  { code: 'FARM20', desc: '20% OFF on orders above ₹600', minSpend: 600, discountRate: 0.20 },
-  { code: 'ORGANIC15', desc: '15% OFF for Vedic patrons', minSpend: 350, discountRate: 0.15 },
-];
-
 export const CartPage: React.FC<CartPageProps> = ({
   items,
   onUpdateQuantity,
@@ -45,11 +39,10 @@ export const CartPage: React.FC<CartPageProps> = ({
   onProceedToCheckout,
 }) => {
   const [couponInput, setCouponInput] = useState('');
-  const [appliedCoupon, setAppliedCoupon] = useState<string | null>('GARUDA10'); // Default welcome discount
-  const [couponMessage, setCouponMessage] = useState<{ type: 'success' | 'error'; text: string }>({
-    type: 'success',
-    text: 'Welcome code GARUDA10 applied! (10% OFF)',
-  });
+  const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
+  const [activeDiscountAmount, setActiveDiscountAmount] = useState(0);
+  const [couponMessage, setCouponMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [activeCouponsList, setActiveCouponsList] = useState<any[]>([]);
   
   // Delivery slot selection
   const [deliverySlot, setDeliverySlot] = useState('Tomorrow Morning (6:00 AM - 9:00 AM) • Fresh Morning Harvest');
@@ -59,54 +52,51 @@ export const CartPage: React.FC<CartPageProps> = ({
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const freeShippingThreshold = 500;
   
-  // Calculate discount & shipping
-  let activeDiscountAmount = 0;
-  let isFreeShippingCoupon = false;
+  // Fetch active coupons from API
+  useEffect(() => {
+    async function loadCoupons() {
+      const res = await api.getActiveCoupons();
+      if (res.ok && res.coupons) {
+        setActiveCouponsList(res.coupons);
+      }
+    }
+    loadCoupons();
+  }, []);
 
-  if (appliedCoupon === 'GARUDA10') {
-    activeDiscountAmount = Math.round(subtotal * 0.10);
-  } else if (appliedCoupon === 'FREESHIP') {
-    isFreeShippingCoupon = true;
-  } else if (appliedCoupon === 'FARM20') {
-    activeDiscountAmount = subtotal >= 600 ? Math.round(subtotal * 0.20) : 0;
-  } else if (appliedCoupon === 'ORGANIC15') {
-    activeDiscountAmount = subtotal >= 350 ? Math.round(subtotal * 0.15) : 0;
-  }
-
-  const deliveryFee = (subtotal >= freeShippingThreshold || isFreeShippingCoupon || items.length === 0) ? 0 : 40;
-  const packagingFee = ecoCratePackaging ? 0 : 15; // 0 for eco returnable crate
+  const deliveryFee = (subtotal >= freeShippingThreshold || items.length === 0) ? 0 : 40;
+  const packagingFee = ecoCratePackaging ? 0 : 15;
   const totalAmount = Math.max(0, subtotal + deliveryFee + packagingFee - activeDiscountAmount);
   const totalItemsCount = items.reduce((sum, item) => sum + item.quantity, 0);
 
-  const handleApplyCoupon = (codeToApply?: string) => {
+  const handleApplyCoupon = async (codeToApply?: string) => {
     const code = (codeToApply || couponInput).trim().toUpperCase();
     if (!code) return;
 
-    const matched = AVAILABLE_COUPONS.find((c) => c.code === code);
-    if (matched) {
-      if (matched.minSpend > 0 && subtotal < matched.minSpend) {
-        setCouponMessage({
-          type: 'error',
-          text: `Coupon ${code} requires minimum cart total of ₹${matched.minSpend}`,
-        });
-        return;
-      }
-      setAppliedCoupon(code);
+    const res = await api.validateSmartCoupon({
+      code,
+      subtotal,
+      items: items.map((it) => ({ product_id: it.product.id, quantity: it.quantity, category: it.product.category })),
+    });
+
+    if (res.ok) {
+      setAppliedCoupon(res.coupon?.code || code);
+      setActiveDiscountAmount(res.discountAmount || 0);
       setCouponInput('');
       setCouponMessage({
         type: 'success',
-        text: `Coupon ${code} applied successfully! (${matched.desc})`,
+        text: res.message || `Coupon ${code} applied successfully!`,
       });
     } else {
       setCouponMessage({
         type: 'error',
-        text: 'Invalid promo code. Try "GARUDA10", "FREESHIP", or "FARM20"',
+        text: res.error || `Invalid coupon code "${code}".`,
       });
     }
   };
 
   const handleRemoveCoupon = () => {
     setAppliedCoupon(null);
+    setActiveDiscountAmount(0);
     setCouponMessage({ type: 'success', text: 'Coupon removed' });
   };
 
@@ -177,7 +167,7 @@ export const CartPage: React.FC<CartPageProps> = ({
                   <div className="flex items-center gap-2 text-[#0F2D1F]">
                     <Truck className="w-4 h-4 text-[#2D6A4F]" />
                     <span>
-                      {subtotal >= freeShippingThreshold || isFreeShippingCoupon ? (
+                      {subtotal >= freeShippingThreshold ? (
                         <span className="text-[#2D6A4F] font-black">🎉 You unlocked FREE Farm Fresh Delivery!</span>
                       ) : (
                         <span>Add <strong>₹{freeShippingThreshold - subtotal}</strong> more for <strong>FREE Delivery</strong></span>
@@ -405,7 +395,7 @@ export const CartPage: React.FC<CartPageProps> = ({
                         <Tag className="w-3.5 h-3.5 text-[#8C6239] absolute left-3 top-1/2 -translate-y-1/2" />
                         <input
                           type="text"
-                          placeholder="e.g. GARUDA10 or FARM20"
+                          placeholder="e.g. SAVE10 or FESTIVE20"
                           value={couponInput}
                           onChange={(e) => setCouponInput(e.target.value)}
                           className="w-full pl-9 pr-3 py-2.5 text-xs font-bold uppercase rounded-xl bg-[#FAF8F2] border border-[#DCD2C3] text-[#0F2D1F] focus:outline-none focus:border-[#2D6A4F]"
@@ -432,21 +422,23 @@ export const CartPage: React.FC<CartPageProps> = ({
                   )}
 
                   {/* Quick available codes list */}
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {AVAILABLE_COUPONS.map((c) => (
-                      <button
-                        key={c.code}
-                        onClick={() => handleApplyCoupon(c.code)}
-                        className={`text-[10px] font-bold px-2 py-1 rounded-md border transition-all ${
-                          appliedCoupon === c.code
-                            ? 'bg-[#2D6A4F] text-[#FAF8F2] border-[#2D6A4F]'
-                            : 'bg-[#FAF8F2] text-[#8C6239] border-[#DCD2C3] hover:border-[#2D6A4F]'
-                        }`}
-                      >
-                        {c.code}
-                      </button>
-                    ))}
-                  </div>
+                  {activeCouponsList.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {activeCouponsList.map((c) => (
+                        <button
+                          key={c.code || c.id}
+                          onClick={() => handleApplyCoupon(c.code)}
+                          className={`text-[10px] font-bold px-2.5 py-1 rounded-md border transition-all ${
+                            appliedCoupon === c.code
+                              ? 'bg-[#2D6A4F] text-[#FAF8F2] border-[#2D6A4F]'
+                              : 'bg-[#FAF8F2] text-[#8C6239] border-[#DCD2C3] hover:border-[#2D6A4F]'
+                          }`}
+                        >
+                          {c.code} ({c.discount_type === 'percentage' ? `${c.discount_value}% OFF` : `₹${c.discount_value} OFF`})
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Price Breakdown Calculation */}

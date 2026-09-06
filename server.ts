@@ -15,13 +15,25 @@ import { seedDatabase } from './server/db/seed';
 import authRoutes from './server/routes/auth';
 import productRoutes from './server/routes/products';
 import categoryRoutes from './server/routes/categories';
-import paymentsRoutes, { handleCreateOrder, handleVerifyPayment, handleTestPayment } from './server/routes/payments';
+import paymentsRoutes, { handleCreateOrder, handleVerifyPayment, handleCreateCodOrder } from './server/routes/payments';
+import ordersRoutes from './server/routes/orders';
+import adminRoutes from './server/routes/admin';
+import accountRoutes from './server/routes/account';
+import addressesRoutes from './server/routes/addresses';
+import wishlistRoutes from './server/routes/wishlist';
+import notificationsRoutes from './server/routes/notifications';
+import supportRoutes from './server/routes/support';
+import couponsRoutes from './server/routes/coupons';
+import reviewsRoutes from './server/routes/reviews';
+import deliveryRoutes from './server/routes/delivery';
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
   // Middlewares
+  // Raw body parser for Razorpay webhook signature verification
+  app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());
@@ -115,11 +127,24 @@ async function startServer() {
   app.use('/api/products', productRoutes);
   app.use('/api/categories', categoryRoutes);
   app.use('/api/payments', paymentsRoutes);
+  // Orders API
+  app.use('/api/orders', ordersRoutes);
+  // Admin Control Center API
+  app.use('/api/admin', adminRoutes);
+  // Customer Account & Profile APIs
+  app.use('/api/account', accountRoutes);
+  app.use('/api/addresses', addressesRoutes);
+  app.use('/api/wishlist', wishlistRoutes);
+  app.use('/api/notifications', notificationsRoutes);
+  app.use('/api/support', supportRoutes);
+  app.use('/api/coupons', couponsRoutes);
+  app.use('/api/reviews', reviewsRoutes);
+  app.use('/api/delivery', deliveryRoutes);
 
-  // Razorpay Standard Checkout direct endpoints
+  // Razorpay & COD Standard Checkout direct endpoints
   app.post('/api/create-order', handleCreateOrder);
   app.post('/api/verify-payment', handleVerifyPayment);
-  app.post('/api/test-payment', handleTestPayment);
+  app.post('/api/create-cod', handleCreateCodOrder);
 
   // Auto-attempt seeding if Supabase is connected and empty
   if (isSupabaseConfigured()) {
@@ -140,9 +165,103 @@ async function startServer() {
         } catch (err: any) {
           console.warn('[Garuda Farms] Initial DB check:', err.message);
         }
+
+        // Run schema migrations to add any new columns introduced by server routes
+        try {
+          const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
+          const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+          if (supabaseUrl && serviceKey) {
+            // Use the Supabase REST SQL endpoint to run DDL migrations
+            const migrationSql = `
+              ALTER TABLE orders ADD COLUMN IF NOT EXISTS auth_id UUID;
+              ALTER TABLE customers ADD COLUMN IF NOT EXISTS auth_id UUID;
+              ALTER TABLE profiles ADD COLUMN IF NOT EXISTS dob DATE;
+              ALTER TABLE profiles ADD COLUMN IF NOT EXISTS gender TEXT DEFAULT 'Prefer not to say';
+              ALTER TABLE profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+              CREATE TABLE IF NOT EXISTS customer_addresses (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID NOT NULL,
+                full_name TEXT NOT NULL,
+                phone TEXT NOT NULL,
+                address_line TEXT NOT NULL,
+                city TEXT NOT NULL,
+                state TEXT NOT NULL DEFAULT 'Telangana',
+                pincode TEXT NOT NULL,
+                label TEXT NOT NULL DEFAULT 'Home',
+                is_default BOOLEAN NOT NULL DEFAULT FALSE,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+              );
+              CREATE TABLE IF NOT EXISTS wishlist_items (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID NOT NULL,
+                product_id INT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                UNIQUE(user_id, product_id)
+              );
+              CREATE TABLE IF NOT EXISTS support_tickets (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID NOT NULL,
+                subject TEXT NOT NULL,
+                category TEXT DEFAULT 'General',
+                message TEXT NOT NULL,
+                order_id TEXT REFERENCES orders(id) ON DELETE SET NULL,
+                status TEXT NOT NULL DEFAULT 'Open',
+                admin_reply TEXT,
+                created_at TIMESTAMPTZ DEFAULT NOW(),
+                updated_at TIMESTAMPTZ DEFAULT NOW()
+              );
+              CREATE TABLE IF NOT EXISTS customer_notifications (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id UUID NOT NULL,
+                title TEXT NOT NULL,
+                message TEXT NOT NULL,
+                type TEXT DEFAULT 'system',
+                order_id TEXT REFERENCES orders(id) ON DELETE SET NULL,
+                read BOOLEAN NOT NULL DEFAULT FALSE,
+                created_at TIMESTAMPTZ DEFAULT NOW()
+              );
+            `;
+
+            const response = await fetch(`${supabaseUrl}/rest/v1/rpc/exec_sql`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'apikey': serviceKey,
+                'Authorization': `Bearer ${serviceKey}`,
+              },
+              body: JSON.stringify({ sql: migrationSql }),
+            });
+
+            if (response.ok) {
+              console.log('[Garuda Farms] Schema migrations applied successfully.');
+            } else {
+              // Fallback: try individual column addition via direct API calls
+              // The RPC may not exist; try a simpler check
+              console.log('[Garuda Farms] RPC migration endpoint not available, checking schema via table queries...');
+
+              // Test if auth_id exists by trying to select it
+              const { error: colCheck } = await client
+                .from('orders')
+                .select('auth_id')
+                .limit(1);
+
+              if (colCheck) {
+                console.log('[Garuda Farms] auth_id column not yet in orders table. Please run the schema migration in Supabase SQL editor:');
+                console.log('ALTER TABLE orders ADD COLUMN IF NOT EXISTS auth_id UUID;');
+              } else {
+                console.log('[Garuda Farms] auth_id column exists in orders table.');
+              }
+            }
+          }
+        } catch (migErr: any) {
+          console.warn('[Garuda Farms] Schema migration check:', migErr.message);
+        }
       })();
     }
   }
+
 
   // 4. Vite Middleware (Dev) vs Static Serving (Prod)
   if (process.env.NODE_ENV !== 'production') {

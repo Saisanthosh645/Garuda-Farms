@@ -8,17 +8,24 @@ interface HorizontalProductShowcaseProps {
   onQuickView: (product: Product) => void;
   onAddToCart: (product: Product, weight?: string) => void;
   onExploreAll: () => void;
+  products?: Product[]; // Live products from API (falls back to static data)
 }
 
 export const HorizontalProductShowcase: React.FC<HorizontalProductShowcaseProps> = ({
   onQuickView,
   onAddToCart,
   onExploreAll,
+  products,
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Pick top signature items from across the 10 categories
-  const featuredShowcase = PRODUCTS.filter((p) => p.featured || [1, 6, 11, 19, 23, 27, 31, 34, 39, 43, 47, 49].includes(p.id));
+  // Use live API products; fall back to static seed data only if API hasn't loaded yet
+  const sourceProducts = products && products.length > 0 ? products : PRODUCTS;
+
+  // Pick top signature items: featured flag first, then known showcase IDs
+  const featuredShowcase = sourceProducts.filter(
+    (p) => p.featured || [1, 6, 11, 19, 23, 27, 31, 34, 39, 43, 47, 49].includes(p.id)
+  );
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
@@ -71,7 +78,7 @@ export const HorizontalProductShowcase: React.FC<HorizontalProductShowcaseProps>
               onClick={onExploreAll}
               className="hidden sm:inline-flex items-center gap-2 px-5 py-3 rounded-full bg-[#2D6A4F] hover:bg-[#1B4332] text-[#FAF8F2] text-xs font-bold tracking-widest uppercase transition-all shadow-md ml-2"
             >
-              <span>View All 50</span>
+              <span>View All {sourceProducts.length}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
@@ -99,6 +106,7 @@ export const HorizontalProductShowcase: React.FC<HorizontalProductShowcaseProps>
                   alt={product.name}
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   loading="lazy"
+                  onError={(e) => { (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=400&q=80'; }}
                 />
                 {product.badge && (
                   <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-[#0F2D1F]/85 text-[#FAF8F2] text-[10px] font-extrabold uppercase tracking-wider backdrop-blur-sm">
@@ -151,10 +159,15 @@ export const HorizontalProductShowcase: React.FC<HorizontalProductShowcaseProps>
                 </button>
                 <button
                   id={`showcase-add-${product.id}`}
+                  disabled={product.stock === false}
                   onClick={() => onAddToCart(product, product.defaultWeight)}
-                  className="py-2.5 px-3 rounded-xl bg-[#2D6A4F] hover:bg-[#1B4332] text-[#FAF8F2] text-xs font-bold uppercase tracking-wider shadow-sm transition-colors"
+                  className={`py-2.5 px-3 rounded-xl text-xs font-bold uppercase tracking-wider shadow-sm transition-colors ${
+                    product.stock === false
+                      ? 'bg-stone-300 text-stone-500 cursor-not-allowed shadow-none'
+                      : 'bg-[#2D6A4F] hover:bg-[#1B4332] text-[#FAF8F2]'
+                  }`}
                 >
-                  Add to Cart
+                  {product.stock === false ? 'Unavailable' : 'Add to Cart'}
                 </button>
               </div>
             </div>

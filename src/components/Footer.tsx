@@ -175,14 +175,14 @@ export const Footer: React.FC<FooterProps> = ({
             <div className="space-y-2.5 text-xs text-[#FAF8F2]/75">
               <div className="flex items-start gap-2.5">
                 <MapPin className="w-4 h-4 text-[#D4A373] shrink-0 mt-0.5" />
-                <span>Survey #42, Chevella Valley Green Belt, Telangana 501503</span>
+                <span>Mudimyala, Chevella, Rangareddy, Telangana 501503</span>
               </div>
               <a
-                href="tel:+919849012847"
+                href="tel:+919866929427"
                 className="flex items-center gap-2.5 hover:text-[#52B788] transition-colors"
               >
                 <Phone className="w-4 h-4 text-[#D4A373] shrink-0" />
-                <span>+91 98490 12847</span>
+                <span>+91 98669 29427</span>
               </a>
               <a
                 href="mailto:harvest@garudafarms.com"
