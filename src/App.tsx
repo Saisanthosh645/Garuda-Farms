@@ -105,7 +105,7 @@ export default function App() {
     });
   }, [liveProducts]);
 
-  // Sync wishlist from database whenever user logs in
+  // Sync wishlist from database whenever user logs in, and clear cart when logged out
   useEffect(() => {
     if (auth?.user) {
       api.getWishlist().then((res) => {
@@ -113,6 +113,12 @@ export default function App() {
           setWishlistIds(res.productIds);
         }
       }).catch(() => {});
+    } else {
+      // User logged out or unauthenticated: clear local cart to prevent guest checkout of user cart
+      setCart([]);
+      try {
+        localStorage.removeItem('garuda_cart');
+      } catch (e) {}
     }
   }, [auth?.user]);
 
@@ -578,11 +584,18 @@ export default function App() {
         {activeView === 'cart' && (
           <CartPage
             items={cart}
+            liveProducts={liveProducts}
             onUpdateQuantity={handleUpdateCartQuantity}
             onRemoveItem={handleRemoveCartItem}
             onMoveToWishlist={handleToggleWishlist}
             onContinueShopping={() => navigateToView('products')}
             onProceedToCheckout={(discount, coupon) => {
+              if (!auth?.user) {
+                setAuthInitialTab('login');
+                setAuthIntent({ type: 'checkout', payload: { discount, coupon } });
+                setIsAuthModalOpen(true);
+                return;
+              }
               setAppliedDiscount(discount);
               setAppliedCoupon(coupon);
               setIsCheckoutOpen(true);
@@ -692,10 +705,18 @@ export default function App() {
       <CartDrawer
         isOpen={isCartDrawerOpen}
         items={cart}
+        liveProducts={liveProducts}
         onClose={() => setIsCartDrawerOpen(false)}
         onUpdateQuantity={handleUpdateCartQuantity}
         onRemoveItem={handleRemoveCartItem}
         onProceedToCheckout={(discount, coupon) => {
+          if (!auth?.user) {
+            setAuthInitialTab('login');
+            setAuthIntent({ type: 'checkout', payload: { discount, coupon } });
+            setIsCartDrawerOpen(false);
+            setIsAuthModalOpen(true);
+            return;
+          }
           setAppliedDiscount(discount);
           setAppliedCoupon(coupon);
           setIsCartDrawerOpen(false);

@@ -23,6 +23,7 @@ import { api } from '../lib/api';
 
 interface CartPageProps {
   items: CartItem[];
+  liveProducts?: Product[];
   onUpdateQuantity: (id: string, delta: number) => void;
   onRemoveItem: (id: string) => void;
   onMoveToWishlist: (product: Product) => void;
@@ -32,6 +33,7 @@ interface CartPageProps {
 
 export const CartPage: React.FC<CartPageProps> = ({
   items,
+  liveProducts,
   onUpdateQuantity,
   onRemoveItem,
   onMoveToWishlist,
@@ -213,16 +215,26 @@ export const CartPage: React.FC<CartPageProps> = ({
                       >
                         {/* Thumbnail + Details */}
                         <div className="flex items-center gap-4 min-w-0 flex-1">
-                          <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-[#EFE8DC] shrink-0 border border-[#DCD2C3]">
-                            <img
-                              src={item.product.image}
-                              alt={item.product.name}
-                              className="w-full h-full object-cover"
-                            />
-                            <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-[#0F2D1F]/80 text-[#FAF8F2] text-[9px] font-bold">
-                              {item.product.category}
-                            </span>
-                          </div>
+                          {(() => {
+                            const liveProd = liveProducts?.find((p) => p.id === item.product.id);
+                            const imgSrc = liveProd?.image || item.product.image;
+                            const fallbackSrc = liveProd?.fallbackImage || item.product.fallbackImage;
+                            return (
+                              <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-[#EFE8DC] shrink-0 border border-[#DCD2C3]">
+                                <img
+                                  src={imgSrc}
+                                  alt={item.product.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    if (fallbackSrc) (e.target as HTMLImageElement).src = fallbackSrc;
+                                  }}
+                                />
+                                <span className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded bg-[#0F2D1F]/80 text-[#FAF8F2] text-[9px] font-bold">
+                                  {item.product.category}
+                                </span>
+                              </div>
+                            );
+                          })()}
 
                           <div className="min-w-0 flex-1">
                             <h3 className="font-heading font-bold text-base text-[#0F2D1F] truncate">

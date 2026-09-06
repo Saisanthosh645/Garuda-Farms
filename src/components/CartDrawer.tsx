@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight, Sparkles, Tag, Check } from 'lucide-react';
-import { CartItem } from '../types';
+import { Product, CartItem } from '../types';
 import { api } from '../lib/api';
 
 interface CartDrawerProps {
   isOpen: boolean;
   items: CartItem[];
+  liveProducts?: Product[];
   onClose: () => void;
   onUpdateQuantity: (id: string, delta: number) => void;
   onRemoveItem: (id: string) => void;
@@ -16,6 +17,7 @@ interface CartDrawerProps {
 export const CartDrawer: React.FC<CartDrawerProps> = ({
   isOpen,
   items,
+  liveProducts,
   onClose,
   onUpdateQuantity,
   onRemoveItem,
@@ -156,11 +158,21 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                       className="p-3.5 rounded-2xl bg-[#FAF8F2] border border-[#E5DEC9] flex gap-3.5 items-center justify-between shadow-sm"
                     >
                       {/* Product Thumbnail */}
-                      <img
-                        src={item.product.image}
-                        alt={item.product.name}
-                        className="w-16 h-16 rounded-xl object-cover bg-[#EFE8DC] shrink-0 border border-[#DCD2C3]"
-                      />
+                      {(() => {
+                        const liveProd = liveProducts?.find((p) => p.id === item.product.id);
+                        const imgSrc = liveProd?.image || item.product.image;
+                        const fallbackSrc = liveProd?.fallbackImage || item.product.fallbackImage;
+                        return (
+                          <img
+                            src={imgSrc}
+                            alt={item.product.name}
+                            className="w-16 h-16 rounded-xl object-cover bg-[#EFE8DC] shrink-0 border border-[#DCD2C3]"
+                            onError={(e) => {
+                              if (fallbackSrc) (e.target as HTMLImageElement).src = fallbackSrc;
+                            }}
+                          />
+                        );
+                      })()}
 
                       {/* Info */}
                       <div className="flex-1 min-w-0">
