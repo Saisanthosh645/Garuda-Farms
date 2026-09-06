@@ -29,6 +29,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(sessionData?.user ?? null);
       setLoading(false);
 
+      // Clean up empty trailing '#' from URL if present
+      if (window.location.hash === '#') {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+
       // If we didn't find a session, check for an OAuth return in the URL and retry fetching session.
       // We detect presence only — we never log tokens or full URLs.
       const hasOAuthReturn = (() => {
@@ -58,6 +63,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (session2) {
               setSession(session2);
               setUser(session2.user ?? null);
+              if (window.location.hash) {
+                window.history.replaceState(null, '', window.location.pathname + window.location.search);
+              }
             }
           } catch (err) {
             console.warn('[AuthProvider] error during OAuth re-check');
@@ -103,6 +111,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         setSession(newSession);
         setUser(newSession?.user ?? null);
+
+        if (window.location.hash) {
+          window.history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
       } catch (err) {
         console.warn('[AuthProvider] onAuthStateChange handler error');
       }
