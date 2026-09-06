@@ -263,7 +263,7 @@ export default function App() {
     // Perform live backend check right at the moment user clicks Add to Cart
     try {
       const freshProduct = await api.getProduct(product.id);
-      if (!freshProduct || freshProduct.stock === false) {
+      if (freshProduct && freshProduct.stock === false) {
         setRemovedFromCartNotice(`"${product.name}" is currently out of stock / unavailable and cannot be added to cart.`);
         setTimeout(() => setRemovedFromCartNotice(null), 5000);
         refreshProducts();
@@ -271,12 +271,12 @@ export default function App() {
       }
     } catch {
       // Fallback check against local liveProducts state if offline
-      const liveVersion = liveProducts.find((p) => p.id === product.id);
-      if (!liveVersion || liveVersion.stock === false) {
-        setRemovedFromCartNotice(`"${product.name}" is currently unavailable and cannot be added to cart.`);
-        setTimeout(() => setRemovedFromCartNotice(null), 5000);
-        return;
-      }
+    }
+
+    if (product.stock === false) {
+      setRemovedFromCartNotice(`"${product.name}" is currently unavailable and cannot be added to cart.`);
+      setTimeout(() => setRemovedFromCartNotice(null), 5000);
+      return;
     }
 
     const selectedWeight = weight || product.defaultWeight;
