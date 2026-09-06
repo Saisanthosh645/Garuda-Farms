@@ -57,30 +57,132 @@ function StatusBadge({ status }: { status: string }) {
   );
 }
 
-// ─── SECTION: Dashboard ───────────────────────────────────────────────────────
+// ─── SECTION: Dashboard & Analytics ───────────────────────────────────────────
+function RevenueTrendChart({ dailyTrends, metric }: { dailyTrends: any[]; metric: 'revenue' | 'orders' }) {
+  const [hoverPoint, setHoverPoint] = useState<any | null>(null);
+
+  if (!dailyTrends || dailyTrends.length === 0) {
+    return <div className="h-48 flex items-center justify-center text-xs text-stone-400">No chart data available</div>;
+  }
+
+  const values = dailyTrends.map((d) => (metric === 'revenue' ? Number(d.revenue || 0) : Number(d.orders || 0)));
+  const maxVal = Math.max(...values, 10);
+
+  const width = 800;
+  const height = 220;
+  const paddingX = 45;
+  const paddingY = 30;
+  const chartW = width - paddingX * 2;
+  const chartH = height - paddingY * 2;
+
+  const points = dailyTrends.map((d, i) => {
+    const x = paddingX + (i / Math.max(1, dailyTrends.length - 1)) * chartW;
+    const val = metric === 'revenue' ? Number(d.revenue || 0) : Number(d.orders || 0);
+    const y = height - paddingY - (val / maxVal) * chartH;
+    return { x, y, val, label: d.label, date: d.date, raw: d };
+  });
+
+  const pathD = points.reduce((acc, p, i, a) => {
+    if (i === 0) return `M ${p.x} ${p.y}`;
+    const prev = a[i - 1];
+    const cx = (prev.x + p.x) / 2;
+    return `${acc} C ${cx} ${prev.y}, ${cx} ${p.y}, ${p.x} ${p.y}`;
+  }, '');
+
+  const areaD = `${pathD} L ${points[points.length - 1].x} ${height - paddingY} L ${points[0].x} ${height - paddingY} Z`;
+
+  const gridRatios = [0, 0.33, 0.66, 1];
+
+  return (
+    <div className="relative w-full overflow-x-auto">
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto min-w-[550px] overflow-visible">
+        <defs>
+          <linearGradient id="chartGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#2D6A4F" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#2D6A4F" stopOpacity="0.0" />
+          </linearGradient>
+        </defs>
+
+        {gridRatios.map((ratio, i) => {
+          const y = height - paddingY - ratio * chartH;
+          const val = Math.round(maxVal * ratio);
+          return (
+            <g key={i}>
+              <line x1={paddingX} y1={y} x2={width - paddingX} y2={y} stroke="#f5f5f4" strokeDasharray="3 3" strokeWidth="1.5" />
+              <text x={paddingX - 8} y={y + 3} textAnchor="end" className="text-[9px] fill-stone-400 font-mono">
+                {metric === 'revenue' ? `₹${val.toLocaleString('en-IN')}` : val}
+              </text>
+            </g>
+          );
+        })}
+
+        <path d={areaD} fill="url(#chartGrad)" />
+        <path d={pathD} fill="none" stroke="#2D6A4F" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+
+        {points.map((p, i) => (
+          <g key={i} className="group cursor-pointer" onMouseEnter={() => setHoverPoint(p)} onMouseLeave={() => setHoverPoint(null)}>
+            <circle cx={p.x} cy={p.y} r="4.5" className="fill-white stroke-[#2D6A4F] stroke-[2.5] group-hover:r-6 group-hover:stroke-emerald-600 transition-all" />
+            {i % Math.ceil(dailyTrends.length / 7) === 0 && (
+              <text x={p.x} y={height - 8} textAnchor="middle" className="text-[10px] fill-stone-500 font-medium">
+                {p.label}
+              </text>
+            )}
+          </g>
+        ))}
+      </svg>
+
+      {hoverPoint && (
+        <div
+          className="absolute z-30 bg-stone-900/95 text-white text-xs rounded-xl px-3 py-2 shadow-2xl pointer-events-none -translate-x-1/2 -translate-y-[120%] border border-stone-700 backdrop-blur-md transition-all"
+          style={{ left: `${(hoverPoint.x / width) * 100}%`, top: `${(hoverPoint.y / height) * 100}%` }}
+        >
+          <p className="font-bold text-stone-300 text-[10px] uppercase tracking-wider">{hoverPoint.label} ({hoverPoint.date})</p>
+          <p className="text-emerald-400 font-black mt-0.5 text-sm">
+            {metric === 'revenue' ? `₹${hoverPoint.val.toLocaleString('en-IN')}` : `${hoverPoint.val} orders`}
+          </p>
+          {metric === 'revenue' && (
+            <p className="text-[10px] text-stone-400">{hoverPoint.raw.orders} orders ({hoverPoint.raw.paidOrders} paid)</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DashboardSection({ toast }: { toast: ReturnType<typeof useToast> }) {
   const [stats, setStats] = useState<any>(null);
+  const [analytics, setAnalytics] = useState<any>(null);
+  const [days, setDays] = useState(30);
   const [loading, setLoading] = useState(true);
+  const [chartMetric, setChartMetric] = useState<'revenue' | 'orders'>('revenue');
+
+  const loadData = useCallback(async (selectedDays = days) => {
+    setLoading(true);
+    const [sRes, aRes] = await Promise.all([
+      api.getAdminStats(),
+      api.getAdminAnalytics(selectedDays),
+    ]);
+
+    if (sRes.ok) setStats(sRes.stats);
+    else toast.show('error', sRes.error || 'Failed to load stats');
+
+    if (aRes.ok) setAnalytics(aRes.analytics);
+    else toast.show('error', aRes.error || 'Failed to load analytics');
+
+    setLoading(false);
+  }, [days, toast]);
 
   useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const res = await api.getAdminStats();
-      if (res.ok) setStats(res.stats);
-      else toast.show('error', res.error || 'Failed to load stats');
-      setLoading(false);
-    })();
-  }, []);
+    loadData(days);
+  }, [days]);
 
   const cards = stats ? [
-    { label: 'Total Orders', value: stats.totalOrders, icon: ShoppingBag, color: 'text-blue-600', bg: 'bg-blue-50' },
-    { label: "Today's Orders", value: stats.todayOrders, icon: Clock, color: 'text-amber-600', bg: 'bg-amber-50' },
-    { label: 'Total Revenue', value: `₹${Number(stats.totalRevenue || 0).toLocaleString('en-IN')}`, icon: IndianRupee, color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: "Today's Revenue", value: `₹${Number(stats.todayRevenue || 0).toLocaleString('en-IN')}`, icon: TrendingUp, color: 'text-green-600', bg: 'bg-green-50' },
-    { label: 'Total Products', value: stats.totalProducts, icon: Package, color: 'text-violet-600', bg: 'bg-violet-50' },
-    { label: 'Available Products', value: stats.activeProducts, icon: Check, color: 'text-teal-600', bg: 'bg-teal-50' },
-    { label: 'Customers', value: stats.totalCustomers, icon: Users, color: 'text-pink-600', bg: 'bg-pink-50' },
-    { label: 'Delivered', value: stats.Delivered, icon: Truck, color: 'text-green-700', bg: 'bg-green-50' },
+    { label: 'Total Orders', value: stats.totalOrders, icon: ShoppingBag, color: 'text-blue-600', bg: 'bg-blue-50', sub: `${stats.todayOrders || 0} today` },
+    { label: 'Total Revenue', value: `₹${Number(stats.totalRevenue || 0).toLocaleString('en-IN')}`, icon: IndianRupee, color: 'text-emerald-600', bg: 'bg-emerald-50', sub: `₹${Number(stats.todayRevenue || 0).toLocaleString('en-IN')} today` },
+    { label: 'Avg Order Value', value: `₹${analytics?.kpis?.averageOrderValue || 0}`, icon: TrendingUp, color: 'text-violet-600', bg: 'bg-violet-50', sub: 'Per paid order' },
+    { label: 'Repeat Customer', value: `${analytics?.kpis?.repeatRate || 0}%`, icon: Users, color: 'text-pink-600', bg: 'bg-pink-50', sub: `${stats.totalCustomers || 0} total users` },
+    { label: 'Available Products', value: stats.activeProducts, icon: Package, color: 'text-teal-600', bg: 'bg-teal-50', sub: `Out of ${stats.totalProducts}` },
+    { label: 'Fulfillment Rate', value: `${analytics?.kpis?.fulfillmentRate || 0}%`, icon: Truck, color: 'text-orange-600', bg: 'bg-orange-50', sub: `${stats.Delivered || 0} delivered` },
   ] : [];
 
   const statusRows = stats ? [
@@ -94,33 +196,204 @@ function DashboardSection({ toast }: { toast: ReturnType<typeof useToast> }) {
     { label: 'Cancelled', value: stats.Cancelled, color: 'bg-red-400' },
   ] : [];
 
-  if (loading) return <div className="flex items-center justify-center h-64"><RefreshCw className="w-8 h-8 animate-spin text-[#2D6A4F]" /></div>;
+  if (loading && !stats) {
+    return <div className="flex items-center justify-center h-64"><RefreshCw className="w-8 h-8 animate-spin text-[#2D6A4F]" /></div>;
+  }
+
+  const categoryBreakdown = analytics?.categoryBreakdown || [];
+  const maxCatRev = Math.max(...categoryBreakdown.map((c: any) => c.revenue), 1);
+  const paymentMethods = analytics?.paymentMethods || {};
+  const totalPaymentOrders = (paymentMethods.COD?.count || 0) + (paymentMethods.Razorpay?.count || 0) + (paymentMethods.Online?.count || 0) || 1;
+  const codPct = Math.round(((paymentMethods.COD?.count || 0) / totalPaymentOrders) * 100);
+  const onlinePct = 100 - codPct;
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Analytics Control Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-stone-200 shadow-sm">
+        <div>
+          <h3 className="font-extrabold text-stone-900 text-base flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-[#2D6A4F]" /> Sales & Revenue Analytics Hub
+          </h3>
+          <p className="text-xs text-stone-500 mt-0.5">Real-time performance metrics and trend charts</p>
+        </div>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          {[7, 30, 90].map((d) => (
+            <button
+              key={d}
+              onClick={() => setDays(d)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                days === d
+                  ? 'bg-[#2D6A4F] text-white shadow-sm'
+                  : 'bg-stone-100 text-stone-600 hover:bg-stone-200'
+              }`}
+            >
+              {d === 7 ? '7 Days' : d === 30 ? '30 Days' : '90 Days'}
+            </button>
+          ))}
+          <button
+            onClick={() => loadData(days)}
+            disabled={loading}
+            className="p-1.5 rounded-xl border border-stone-200 text-stone-600 hover:bg-stone-50 transition-colors"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+      </div>
+
+      {/* Top Metric Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
         {cards.map((c) => (
-          <div key={c.label} className="bg-white rounded-2xl border border-stone-200 p-4 shadow-sm hover:shadow-md transition-shadow">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-[11px] text-stone-500 font-semibold uppercase tracking-wider">{c.label}</p>
-                <p className={`text-2xl font-black mt-1 ${c.color}`}>{c.value}</p>
-              </div>
-              <div className={`w-10 h-10 rounded-xl ${c.bg} flex items-center justify-center`}>
-                <c.icon className={`w-5 h-5 ${c.color}`} />
+          <div key={c.label} className="bg-white rounded-2xl border border-stone-200 p-3.5 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider">{c.label}</span>
+              <div className={`w-7 h-7 rounded-lg ${c.bg} flex items-center justify-center shrink-0`}>
+                <c.icon className={`w-3.5 h-3.5 ${c.color}`} />
               </div>
             </div>
+            <p className={`text-xl font-black ${c.color}`}>{c.value}</p>
+            <p className="text-[10px] text-stone-500 font-medium mt-0.5">{c.sub}</p>
           </div>
         ))}
       </div>
-      <div className="bg-white rounded-2xl border border-stone-200 p-6 shadow-sm">
+
+      {/* Interactive Trend Chart Card */}
+      <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h4 className="font-bold text-stone-900 text-sm flex items-center gap-2">
+              <TrendingUp className="w-4 h-4 text-[#2D6A4F]" /> Performance Trends ({days} Days)
+            </h4>
+            <p className="text-xs text-stone-400">Daily sales revenue and order volume curve</p>
+          </div>
+          <div className="flex items-center gap-1 bg-stone-100 p-1 rounded-xl">
+            <button
+              onClick={() => setChartMetric('revenue')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                chartMetric === 'revenue' ? 'bg-white text-[#2D6A4F] shadow-sm' : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              Revenue (₹)
+            </button>
+            <button
+              onClick={() => setChartMetric('orders')}
+              className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                chartMetric === 'orders' ? 'bg-white text-[#2D6A4F] shadow-sm' : 'text-stone-600 hover:text-stone-900'
+              }`}
+            >
+              Order Count
+            </button>
+          </div>
+        </div>
+
+        <RevenueTrendChart dailyTrends={analytics?.dailyTrends || []} metric={chartMetric} />
+      </div>
+
+      {/* 2-Column Analytics Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Category Sales Distribution */}
+        <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm space-y-4">
+          <h4 className="font-bold text-stone-900 text-sm flex items-center gap-2">
+            <Layers className="w-4 h-4 text-[#2D6A4F]" /> Category Sales Breakdown
+          </h4>
+          {categoryBreakdown.length === 0 ? (
+            <p className="text-xs text-stone-400 py-6 text-center">No category sales data recorded</p>
+          ) : (
+            <div className="space-y-3">
+              {categoryBreakdown.map((cat: any, idx: number) => {
+                const pct = Math.round((cat.revenue / maxCatRev) * 100);
+                const colors = ['bg-[#2D6A4F]', 'bg-amber-500', 'bg-indigo-500', 'bg-teal-500', 'bg-rose-500', 'bg-purple-500'];
+                const color = colors[idx % colors.length];
+                return (
+                  <div key={cat.category} className="space-y-1">
+                    <div className="flex justify-between items-center text-xs">
+                      <span className="font-bold text-stone-800">{cat.category}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-stone-400">{cat.count} items sold</span>
+                        <span className="font-black text-stone-900">₹{Number(cat.revenue).toLocaleString('en-IN')}</span>
+                      </div>
+                    </div>
+                    <div className="w-full bg-stone-100 h-2 rounded-full overflow-hidden">
+                      <div className={`h-full ${color} transition-all duration-500 rounded-full`} style={{ width: `${pct}%` }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Payment Methods & Operational KPI Split */}
+        <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm space-y-5">
+          <h4 className="font-bold text-stone-900 text-sm flex items-center gap-2">
+            <Shield className="w-4 h-4 text-[#2D6A4F]" /> Payment Method & Channel Split
+          </h4>
+          <div className="bg-stone-50 p-4 rounded-xl space-y-3 border border-stone-100">
+            <div className="flex justify-between items-center text-xs font-bold text-stone-700">
+              <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-emerald-500" /> Online Payments ({onlinePct}%)</span>
+              <span className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-amber-500" /> Cash on Delivery ({codPct}%)</span>
+            </div>
+            <div className="w-full bg-amber-500 h-3 rounded-full overflow-hidden flex">
+              <div className="bg-emerald-500 h-full transition-all duration-500" style={{ width: `${onlinePct}%` }} />
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+              <div className="bg-white p-2.5 rounded-lg border border-stone-200">
+                <p className="text-[10px] text-stone-400 font-bold uppercase">Online / Razorpay</p>
+                <p className="font-black text-emerald-700 mt-0.5">₹{Number((paymentMethods.Razorpay?.revenue || 0) + (paymentMethods.Online?.revenue || 0)).toLocaleString('en-IN')}</p>
+                <p className="text-[10px] text-stone-500">{(paymentMethods.Razorpay?.count || 0) + (paymentMethods.Online?.count || 0)} transactions</p>
+              </div>
+              <div className="bg-white p-2.5 rounded-lg border border-stone-200">
+                <p className="text-[10px] text-stone-400 font-bold uppercase">Cash on Delivery</p>
+                <p className="font-black text-amber-700 mt-0.5">₹{Number(paymentMethods.COD?.revenue || 0).toLocaleString('en-IN')}</p>
+                <p className="text-[10px] text-stone-500">{paymentMethods.COD?.count || 0} orders</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Top Products Leaderboard Table */}
+      {analytics?.topProducts?.length > 0 && (
+        <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm space-y-3">
+          <h4 className="font-bold text-stone-900 text-sm flex items-center gap-2">
+            <Star className="w-4 h-4 text-amber-500 fill-amber-500" /> Top Selling Products
+          </h4>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-stone-50 border-b border-stone-200 text-[10px] font-bold uppercase tracking-wider text-stone-500">
+                <tr>
+                  <th className="p-2.5 pl-3">Rank</th>
+                  <th className="p-2.5">Product</th>
+                  <th className="p-2.5">Category</th>
+                  <th className="p-2.5">Units Sold</th>
+                  <th className="p-2.5 pr-3 text-right">Revenue Generated</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-stone-100">
+                {analytics.topProducts.map((p: any, idx: number) => (
+                  <tr key={p.name} className="hover:bg-stone-50/80 transition-colors">
+                    <td className="p-2.5 pl-3 font-bold text-stone-400">#{idx + 1}</td>
+                    <td className="p-2.5 font-bold text-stone-900">{p.name}</td>
+                    <td className="p-2.5"><span className="px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 font-medium text-[10px]">{p.category}</span></td>
+                    <td className="p-2.5 font-semibold text-stone-700">{p.count} units</td>
+                    <td className="p-2.5 pr-3 text-right font-black text-emerald-700">₹{Number(p.revenue).toLocaleString('en-IN')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Order Status Breakdown Grid */}
+      <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm">
         <h3 className="font-bold text-stone-800 mb-4 text-sm">Order Status Breakdown</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           {statusRows.map((s) => (
-            <div key={s.label} className="flex items-center gap-2.5">
+            <div key={s.label} className="flex items-center gap-2.5 p-2 rounded-xl bg-stone-50/50 border border-stone-100">
               <div className={`w-2.5 h-2.5 rounded-full ${s.color} shrink-0`} />
               <span className="text-xs text-stone-600 flex-1">{s.label}</span>
-              <span className="text-xs font-bold text-stone-900">{s.value ?? 0}</span>
+              <span className="text-xs font-extrabold text-stone-900">{s.value ?? 0}</span>
             </div>
           ))}
         </div>
@@ -784,6 +1057,30 @@ function OrdersSection({ toast }: { toast: ReturnType<typeof useToast> }) {
       toast.show('error', res.error || 'Status update failed');
     }
     setUpdatingId(null);
+  };
+
+  const handleDeleteSingleOrder = async (orderId: string) => {
+    if (!window.confirm(`Are you sure you want to delete order #${orderId}?`)) return;
+    const res = await api.deleteAdminOrder(orderId);
+    if (res.ok) {
+      toast.show('success', `Order #${orderId} deleted successfully`);
+      if (selectedOrder?.id === orderId) setSelectedOrder(null);
+      load();
+    } else {
+      toast.show('error', res.error || 'Failed to delete order');
+    }
+  };
+
+  const handleClearAllOrders = async () => {
+    if (!window.confirm('Are you sure you want to clear ALL test orders? This action cannot be undone!')) return;
+    const res = await api.clearAllAdminOrders();
+    if (res.ok) {
+      toast.show('success', res.message || 'All test orders cleared successfully');
+      setSelectedOrder(null);
+      load();
+    } else {
+      toast.show('error', res.error || 'Failed to clear test orders');
+    }
   };
 
   const STATUSES = ['All', 'Pending', 'Confirmed', 'Processing', 'Packed', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'];

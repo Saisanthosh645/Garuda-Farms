@@ -109,14 +109,20 @@ app.post('/api/create-cod', handleCreateCodOrder);
 if (isSupabaseConfigured()) {
   const client = getSupabase();
   if (client) {
-    client.from('products').select('id', { count: 'exact', head: true })
-      .then(({ count }) => {
+    (async () => {
+      try {
+        const { count, error } = await client.from('products').select('id', { count: 'exact', head: true });
+        if (error) throw error;
         if (count === 0 || count === null) {
-          return seedDatabase(client).then(() => console.log('[Garuda Farms] Auto-seed complete.'));
+          await seedDatabase(client);
+          console.log('[Garuda Farms] Auto-seed complete.');
+        } else {
+          console.log(`[Garuda Farms] DB ready with ${count} products.`);
         }
-        console.log(`[Garuda Farms] DB ready with ${count} products.`);
-      })
-      .catch((err: any) => console.warn('[Garuda Farms] DB check error:', err.message));
+      } catch (err: any) {
+        console.warn('[Garuda Farms] DB check error:', err?.message || err);
+      }
+    })();
   }
 }
 

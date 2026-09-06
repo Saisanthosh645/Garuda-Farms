@@ -91,6 +91,148 @@ router.get('/stats', requireAdmin, async (req: Request, res: Response): Promise<
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/admin/analytics — Detailed analytics and visual graph data
+// ─────────────────────────────────────────────────────────────────────────────
+router.get('/analytics', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  const supabase = getSupabase();
+  if (!supabase) { res.status(500).json({ ok: false, error: 'Supabase not configured' }); return; }
+
+  try {
+    const days = Math.min(90, Math.max(7, Number(req.query.days || 30)));
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+    startDate.setHours(0, 0, 0, 0);
+
+    const [ordersRes, productsRes, categoriesRes] = await Promise.all([
+      supabase.from('orders').select('id, customer_email, total_amount, payment_status, payment_method, order_status, created_at, items'),
+      supabase.from('products').select('id, name, category, price, is_in_stock, is_active'),
+      supabase.from('categories').select('id, name'),
+    ]);
+
+    const orders = ordersRes.data || [];
+    const products = productsRes.data || [];
+    const categories = categoriesRes.data || [];
+
+    const trendMap = new Map<string, { date: string; label: string; revenue: number; orders: number; paidOrders: number }>();
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const dateStr = d.toISOString().split('T')[0];
+      const label = d.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' });
+      trendMap.set(dateStr, { date: dateStr, label, revenue: 0, orders: 0, paidOrders: 0 });
+    }
+
+    const paymentMethods: Record<string, { count: number; revenue: number }> = {
+      COD: { count: 0, revenue: 0 },
+      Razorpay: { count: 0, revenue: 0 },
+      Online: { count: 0, revenue: 0 },
+      Other: { count: 0, revenue: 0 },
+    };
+
+    const categoryMap = new Map<string, { category: string; revenue: number; count: number }>();
+    categories.forEach((c) => categoryMap.set(c.name, { category: c.name, revenue: 0, count: 0 }));
+
+    const productSalesMap = new Map<string, { name: string; category: string; count: number; revenue: number }>();
+    const customerOrderCounts = new Map<string, number>();
+
+    let totalPaidRevenue = 0;
+    let paidOrdersCount = 0;
+
+    orders.forEach((o) => {
+      const dateStr = new Date(o.created_at).toISOString().split('T')[0];
+      const isPaid = o.payment_status === 'Paid';
+      const amount = Number(o.total_amount || 0);
+
+      if (o.customer_email) {
+        customerOrderCounts.set(o.customer_email, (customerOrderCounts.get(o.customer_email) || 0) + 1);
+      }
+
+      if (trendMap.has(dateStr)) {
+        const item = trendMap.get(dateStr)!;
+        item.orders += 1;
+        if (isPaid) {
+          item.revenue += amount;
+          item.paidOrders += 1;
+        }
+      }
+
+      if (isPaid) {
+        totalPaidRevenue += amount;
+        paidOrdersCount += 1;
+      }
+
+      const methodKey = o.payment_method?.toUpperCase().includes('COD') ? 'COD' :
+                        o.payment_method?.toUpperCase().includes('RAZORPAY') ? 'Razorpay' :
+                        o.payment_method ? 'Online' : 'Other';
+      paymentMethods[methodKey].count += 1;
+      if (isPaid) paymentMethods[methodKey].revenue += amount;
+
+      if (Array.isArray(o.items)) {
+        o.items.forEach((it: any) => {
+          const prodName = it.product_name || it.name || 'Unknown Product';
+          const qty = Number(it.quantity || 1);
+          const price = Number(it.total_price || (it.unit_price * qty) || 0);
+
+          const prod = products.find((p) => p.name?.toLowerCase() === prodName.toLowerCase());
+          const catName = prod?.category || 'General';
+
+          if (!categoryMap.has(catName)) {
+            categoryMap.set(catName, { category: catName, revenue: 0, count: 0 });
+          }
+          const catObj = categoryMap.get(catName)!;
+          catObj.count += qty;
+          if (isPaid) catObj.revenue += price;
+
+          if (!productSalesMap.has(prodName)) {
+            productSalesMap.set(prodName, { name: prodName, category: catName, count: 0, revenue: 0 });
+          }
+          const prodObj = productSalesMap.get(prodName)!;
+          prodObj.count += qty;
+          if (isPaid) prodObj.revenue += price;
+        });
+      }
+    });
+
+    const dailyTrends = Array.from(trendMap.values());
+    const categoryBreakdown = Array.from(categoryMap.values())
+      .filter((c) => c.count > 0 || c.revenue > 0)
+      .sort((a, b) => b.revenue - a.revenue);
+
+    const topProducts = Array.from(productSalesMap.values())
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+
+    const totalCustomers = customerOrderCounts.size;
+    const repeatCustomers = Array.from(customerOrderCounts.values()).filter((cnt) => cnt > 1).length;
+    const repeatRate = totalCustomers > 0 ? Math.round((repeatCustomers / totalCustomers) * 100) : 0;
+    const averageOrderValue = paidOrdersCount > 0 ? Math.round(totalPaidRevenue / paidOrdersCount) : 0;
+    const deliveredOrders = orders.filter((o) => o.order_status === 'Delivered').length;
+    const fulfillmentRate = orders.length > 0 ? Math.round((deliveredOrders / orders.length) * 100) : 0;
+
+    res.json({
+      ok: true,
+      analytics: {
+        dailyTrends,
+        categoryBreakdown,
+        topProducts,
+        paymentMethods,
+        kpis: {
+          totalPaidRevenue,
+          paidOrdersCount,
+          averageOrderValue,
+          repeatRate,
+          fulfillmentRate,
+          deliveredOrders,
+          totalCustomers,
+        },
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/admin/customers — Customer list with order counts
 // ─────────────────────────────────────────────────────────────────────────────
 router.get('/customers', requireAdmin, async (req: Request, res: Response): Promise<void> => {

@@ -525,6 +525,16 @@ export const api = {
     }
   },
 
+  async getAdminAnalytics(days = 30): Promise<{ ok: boolean; analytics?: any; error?: string }> {
+    const headers = await getAuthHeader();
+    try {
+      const res = await fetch(`/api/admin/analytics?days=${days}`, { headers });
+      return res.json();
+    } catch (err: any) {
+      return { ok: false, error: err.message };
+    }
+  },
+
   // Admin Me
   async getAdminIdentity(): Promise<{ ok: boolean; admin?: any; error?: string }> {
     const headers = await getAuthHeader();
