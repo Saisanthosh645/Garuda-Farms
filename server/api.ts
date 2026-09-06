@@ -6,24 +6,24 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // Database & Seed
-import { getSupabase, isSupabaseConfigured, testSupabaseConnection } from '../server/db/supabase';
-import { seedDatabase } from '../server/db/seed';
+import { getSupabase, isSupabaseConfigured, testSupabaseConnection } from './db/supabase';
+import { seedDatabase } from './db/seed';
 
 // Routers
-import authRoutes from '../server/routes/auth';
-import productRoutes from '../server/routes/products';
-import categoryRoutes from '../server/routes/categories';
-import paymentsRoutes, { handleCreateOrder, handleVerifyPayment, handleCreateCodOrder } from '../server/routes/payments';
-import ordersRoutes from '../server/routes/orders';
-import adminRoutes from '../server/routes/admin';
-import accountRoutes from '../server/routes/account';
-import addressesRoutes from '../server/routes/addresses';
-import wishlistRoutes from '../server/routes/wishlist';
-import notificationsRoutes from '../server/routes/notifications';
-import supportRoutes from '../server/routes/support';
-import couponsRoutes from '../server/routes/coupons';
-import reviewsRoutes from '../server/routes/reviews';
-import deliveryRoutes from '../server/routes/delivery';
+import authRoutes from './routes/auth';
+import productRoutes from './routes/products';
+import categoryRoutes from './routes/categories';
+import paymentsRoutes, { handleCreateOrder, handleVerifyPayment, handleCreateCodOrder } from './routes/payments';
+import ordersRoutes from './routes/orders';
+import adminRoutes from './routes/admin';
+import accountRoutes from './routes/account';
+import addressesRoutes from './routes/addresses';
+import wishlistRoutes from './routes/wishlist';
+import notificationsRoutes from './routes/notifications';
+import supportRoutes from './routes/support';
+import couponsRoutes from './routes/coupons';
+import reviewsRoutes from './routes/reviews';
+import deliveryRoutes from './routes/delivery';
 
 const app = express();
 

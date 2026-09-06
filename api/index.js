@@ -1,4 +1,4 @@
-// api/index.ts
+// server/api.ts
 import express from "express";
 import cookieParser from "cookie-parser";
 import dotenv from "dotenv";
@@ -4343,7 +4343,7 @@ router14.get("/pincodes", async (req, res) => {
 });
 var delivery_default = router14;
 
-// api/index.ts
+// server/api.ts
 dotenv.config();
 var app = express();
 app.use("/api/payments/webhook", express.raw({ type: "application/json" }));
@@ -4427,7 +4427,7 @@ if (isSupabaseConfigured()) {
     }).catch((err) => console.warn("[Garuda Farms] DB check error:", err.message));
   }
 }
-var index_default = app;
+var api_default = app;
 export {
-  index_default as default
+  api_default as default
 };
