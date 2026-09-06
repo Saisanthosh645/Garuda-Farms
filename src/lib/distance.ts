@@ -61,9 +61,11 @@ export function calculateDeliveryFeeByPincode(
   pincode: string,
   subtotal: number,
   customRatePerKm = DEFAULT_RATE_PER_KM,
-  customFreeThreshold = DEFAULT_FREE_SHIPPING_THRESHOLD
+  customFreeThreshold = 500,
+  appliedCouponCode?: string
 ): DistanceDeliveryResult {
   const cleanPin = String(pincode || '').trim().replace(/\D/g, '');
+  const cleanCoupon = String(appliedCouponCode || '').trim().toUpperCase();
 
   let distanceKm = 4; // Default minimum estimated distance
   let locationName = 'Mudimyala Sanctuary Bay';
@@ -90,9 +92,9 @@ export function calculateDeliveryFeeByPincode(
 
   const ratePerKm = customRatePerKm > 0 ? customRatePerKm : DEFAULT_RATE_PER_KM;
   const calculatedFee = Math.max(40, Math.round(distanceKm * ratePerKm));
-  const isFreeDelivery = subtotal >= customFreeThreshold && subtotal > 0;
+  const isFreeDelivery = cleanCoupon === 'GARUDAFREE' && subtotal >= 500;
   const finalFee = isFreeDelivery || subtotal === 0 ? 0 : calculatedFee;
-  const amountNeededForFreeDelivery = Math.max(0, customFreeThreshold - subtotal);
+  const amountNeededForFreeDelivery = cleanCoupon === 'GARUDAFREE' ? Math.max(0, 500 - subtotal) : 0;
 
   return {
     pincode: cleanPin,
@@ -102,7 +104,7 @@ export function calculateDeliveryFeeByPincode(
     calculatedFee,
     finalFee,
     isFreeDelivery,
-    freeShippingThreshold: customFreeThreshold,
+    freeShippingThreshold: 500,
     amountNeededForFreeDelivery,
   };
 }

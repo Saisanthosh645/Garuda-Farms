@@ -180,7 +180,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     const cleanPin = pincode.trim().replace(/\D/g, '');
     if (cleanPin.length === 6) {
       setIsCheckingDelivery(true);
-      api.calculateDeliveryFee(cleanPin, subtotal).then((res) => {
+      api.calculateDeliveryFee(cleanPin, subtotal, couponCode).then((res) => {
         setIsCheckingDelivery(false);
         if (res.ok && res.serviceable) {
           setDeliveryInfo({
@@ -197,7 +197,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         }
       }).catch(() => {
         setIsCheckingDelivery(false);
-        const localRes = calculateDeliveryFeeByPincode(cleanPin, subtotal);
+        const localRes = calculateDeliveryFeeByPincode(cleanPin, subtotal, 10, 500, couponCode);
         if (PINCODE_DISTANCE_MAP[cleanPin]) {
           setDeliveryInfo({
             distanceKm: localRes.distanceKm,
@@ -217,7 +217,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     } else {
       setDeliveryError(null);
     }
-  }, [pincode, subtotal]);
+  }, [pincode, subtotal, couponCode]);
 
   const deliveryFee = deliveryError || items.length === 0 ? 0 : deliveryInfo.finalFee;
   const total = Math.max(1, subtotal + deliveryFee - discountAmount);

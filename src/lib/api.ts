@@ -874,7 +874,7 @@ export const api = {
   },
 
   // ─── Delivery Engine API Methods ────────────────────────────────────────────────
-  async calculateDeliveryFee(pincode: string, subtotal: number): Promise<{
+  async calculateDeliveryFee(pincode: string, subtotal: number, couponCode?: string): Promise<{
     ok: boolean;
     serviceable: boolean;
     pincode?: string;
@@ -892,7 +892,7 @@ export const api = {
       const res = await fetch('/api/delivery/calculate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pincode, subtotal }),
+        body: JSON.stringify({ pincode, subtotal, couponCode }),
       });
       const text = await res.text();
       if (!text) return { ok: false, serviceable: false, error: 'Empty response' };

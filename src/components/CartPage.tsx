@@ -57,13 +57,15 @@ export const CartPage: React.FC<CartPageProps> = ({
     async function loadCoupons() {
       const res = await api.getActiveCoupons();
       if (res.ok && res.coupons) {
-        setActiveCouponsList(res.coupons);
+        // Ensure secret GARUDAFREE coupon is never visible in available coupons list
+        setActiveCouponsList(res.coupons.filter((c: any) => c.code.toUpperCase() !== 'GARUDAFREE'));
       }
     }
     loadCoupons();
   }, []);
 
-  const deliveryFee = (subtotal >= freeShippingThreshold || items.length === 0) ? 0 : 40;
+  const isGarudaFreeApplied = appliedCoupon?.toUpperCase() === 'GARUDAFREE' && subtotal >= 500;
+  const deliveryFee = (items.length === 0 || isGarudaFreeApplied) ? 0 : 40;
   const packagingFee = ecoCratePackaging ? 0 : 15;
   const totalAmount = Math.max(0, subtotal + deliveryFee + packagingFee - activeDiscountAmount);
   const totalItemsCount = items.reduce((sum, item) => sum + item.quantity, 0);

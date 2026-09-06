@@ -20,7 +20,8 @@ router.get('/active', async (req: Request, res: Response): Promise<void> => {
         .order('created_at', { ascending: false });
 
       if (!error && data) {
-        res.json({ ok: true, coupons: data });
+        const visibleCoupons = data.filter((c: any) => c.code.toUpperCase() !== 'GARUDAFREE');
+        res.json({ ok: true, coupons: visibleCoupons });
         return;
       }
     }
@@ -45,6 +46,32 @@ router.post('/validate', async (req: Request, res: Response): Promise<void> => {
 
     const cleanCode = code.trim().toUpperCase();
     const cartSubtotal = Number(subtotal || 0);
+
+    // Secret GARUDAFREE handling
+    if (cleanCode === 'GARUDAFREE') {
+      if (cartSubtotal < 500) {
+        res.status(400).json({
+          ok: false,
+          error: `Coupon "GARUDAFREE" requires a minimum order subtotal of ₹500 for Free Delivery. (Current: ₹${cartSubtotal})`,
+        });
+        return;
+      }
+
+      res.json({
+        ok: true,
+        coupon: {
+          code: 'GARUDAFREE',
+          discount_type: 'free_shipping',
+          discount_value: 0,
+          description: 'Unlocks FREE Delivery on orders ₹500+',
+        },
+        discountAmount: 0,
+        isFreeDelivery: true,
+        netTotal: cartSubtotal,
+        message: 'Secret coupon "GARUDAFREE" applied! Free Delivery unlocked.',
+      });
+      return;
+    }
 
     const client = getSupabase();
     let coupon: any = null;

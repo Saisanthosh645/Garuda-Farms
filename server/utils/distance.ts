@@ -113,10 +113,12 @@ export async function getDeliverySettingsFromDb(): Promise<{ ratePerKm: number; 
  */
 export async function calculateServerDeliveryFee(
   pincode: string,
-  subtotal: number
+  subtotal: number,
+  couponCode?: string
 ): Promise<ServerDeliveryCalculation> {
   const cleanPin = String(pincode || '').trim().replace(/\D/g, '');
   const supabase = getSupabase();
+  const cleanCoupon = String(couponCode || '').trim().toUpperCase();
 
   if (!cleanPin || cleanPin.length !== 6) {
     return {
@@ -204,9 +206,10 @@ export async function calculateServerDeliveryFee(
   const ratePerKm = settings.ratePerKm;
   // Calculate delivery fee dynamically based on distance from Garuda Farms origin: ₹10/km
   const calculatedFee = Math.round(distanceKm * ratePerKm);
-  const isFreeDelivery = settings.freeThreshold > 0 && subtotal >= settings.freeThreshold && subtotal > 0;
+  // FREE delivery is granted ONLY when secret coupon GARUDAFREE is entered and subtotal >= 500
+  const isFreeDelivery = cleanCoupon === 'GARUDAFREE' && subtotal >= 500;
   const finalFee = isFreeDelivery || subtotal === 0 ? 0 : calculatedFee;
-  const amountNeededForFreeDelivery = settings.freeThreshold > 0 ? Math.max(0, settings.freeThreshold - subtotal) : 0;
+  const amountNeededForFreeDelivery = cleanCoupon === 'GARUDAFREE' ? Math.max(0, 500 - subtotal) : 0;
 
   return {
     ok: true,
@@ -218,7 +221,7 @@ export async function calculateServerDeliveryFee(
     calculatedFee,
     finalFee,
     isFreeDelivery,
-    freeShippingThreshold: settings.freeThreshold,
+    freeShippingThreshold: 500,
     amountNeededForFreeDelivery,
   };
 }

@@ -1317,9 +1317,10 @@ async function getDeliverySettingsFromDb() {
   }
   return { ratePerKm, freeThreshold, originAddress };
 }
-async function calculateServerDeliveryFee(pincode, subtotal) {
+async function calculateServerDeliveryFee(pincode, subtotal, couponCode) {
   const cleanPin = String(pincode || "").trim().replace(/\D/g, "");
   const supabase = getSupabase();
+  const cleanCoupon = String(couponCode || "").trim().toUpperCase();
   if (!cleanPin || cleanPin.length !== 6) {
     return {
       ok: false,
@@ -1392,9 +1393,9 @@ async function calculateServerDeliveryFee(pincode, subtotal) {
   }
   const ratePerKm = settings.ratePerKm;
   const calculatedFee = Math.round(distanceKm * ratePerKm);
-  const isFreeDelivery = settings.freeThreshold > 0 && subtotal >= settings.freeThreshold && subtotal > 0;
+  const isFreeDelivery = cleanCoupon === "GARUDAFREE" && subtotal >= 500;
   const finalFee = isFreeDelivery || subtotal === 0 ? 0 : calculatedFee;
-  const amountNeededForFreeDelivery = settings.freeThreshold > 0 ? Math.max(0, settings.freeThreshold - subtotal) : 0;
+  const amountNeededForFreeDelivery = cleanCoupon === "GARUDAFREE" ? Math.max(0, 500 - subtotal) : 0;
   return {
     ok: true,
     serviceable: true,
@@ -1405,7 +1406,7 @@ async function calculateServerDeliveryFee(pincode, subtotal) {
     calculatedFee,
     finalFee,
     isFreeDelivery,
-    freeShippingThreshold: settings.freeThreshold,
+    freeShippingThreshold: 500,
     amountNeededForFreeDelivery
   };
 }
@@ -2664,7 +2665,7 @@ async function calculateAuthoritativeTotals(items, couponCode, pincode) {
   }
   let deliveryFee = 0;
   if (pincode) {
-    const deliveryCalc = await calculateServerDeliveryFee(pincode, subtotal);
+    const deliveryCalc = await calculateServerDeliveryFee(pincode, subtotal, couponCode);
     if (!deliveryCalc.ok || !deliveryCalc.serviceable) {
       return {
         ok: false,
@@ -2679,7 +2680,8 @@ async function calculateAuthoritativeTotals(items, couponCode, pincode) {
     }
     deliveryFee = deliveryCalc.finalFee;
   } else {
-    deliveryFee = subtotal >= 1e3 || validatedItems.length === 0 ? 0 : 40;
+    const isGarudaFree = String(couponCode || "").trim().toUpperCase() === "GARUDAFREE" && subtotal >= 500;
+    deliveryFee = isGarudaFree || validatedItems.length === 0 ? 0 : 40;
   }
   let discount = 0;
   if (couponCode && supabase) {
@@ -3981,7 +3983,8 @@ router12.get("/active", async (req, res) => {
       const now = (/* @__PURE__ */ new Date()).toISOString();
       const { data, error } = await client.from("coupons").select("*").eq("is_active", true).or(`expires_at.is.null,expires_at.gt.${now}`).order("created_at", { ascending: false });
       if (!error && data) {
-        res.json({ ok: true, coupons: data });
+        const visibleCoupons = data.filter((c) => c.code.toUpperCase() !== "GARUDAFREE");
+        res.json({ ok: true, coupons: visibleCoupons });
         return;
       }
     }
@@ -3999,6 +4002,29 @@ router12.post("/validate", async (req, res) => {
     }
     const cleanCode = code.trim().toUpperCase();
     const cartSubtotal = Number(subtotal || 0);
+    if (cleanCode === "GARUDAFREE") {
+      if (cartSubtotal < 500) {
+        res.status(400).json({
+          ok: false,
+          error: `Coupon "GARUDAFREE" requires a minimum order subtotal of \u20B9500 for Free Delivery. (Current: \u20B9${cartSubtotal})`
+        });
+        return;
+      }
+      res.json({
+        ok: true,
+        coupon: {
+          code: "GARUDAFREE",
+          discount_type: "free_shipping",
+          discount_value: 0,
+          description: "Unlocks FREE Delivery on orders \u20B9500+"
+        },
+        discountAmount: 0,
+        isFreeDelivery: true,
+        netTotal: cartSubtotal,
+        message: 'Secret coupon "GARUDAFREE" applied! Free Delivery unlocked.'
+      });
+      return;
+    }
     const client = getSupabase();
     let coupon = null;
     if (client) {
@@ -4275,7 +4301,7 @@ import { Router as Router14 } from "express";
 var router14 = Router14();
 router14.post("/calculate", async (req, res) => {
   try {
-    const { pincode, subtotal = 0 } = req.body || {};
+    const { pincode, subtotal = 0, couponCode } = req.body || {};
     if (!pincode) {
       res.status(400).json({
         ok: false,
@@ -4285,7 +4311,7 @@ router14.post("/calculate", async (req, res) => {
       return;
     }
     const numericSubtotal = Math.max(0, Number(subtotal) || 0);
-    const result = await calculateServerDeliveryFee(String(pincode), numericSubtotal);
+    const result = await calculateServerDeliveryFee(String(pincode), numericSubtotal, couponCode);
     if (!result.ok || !result.serviceable) {
       res.status(200).json({
         ok: false,

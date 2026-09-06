@@ -112,7 +112,7 @@ async function calculateAuthoritativeTotals(
   // Calculate dynamic server-side delivery fee using distance engine (₹10/km from Garuda Farms)
   let deliveryFee = 0;
   if (pincode) {
-    const deliveryCalc = await calculateServerDeliveryFee(pincode, subtotal);
+    const deliveryCalc = await calculateServerDeliveryFee(pincode, subtotal, couponCode);
     if (!deliveryCalc.ok || !deliveryCalc.serviceable) {
       return {
         ok: false,
@@ -127,7 +127,8 @@ async function calculateAuthoritativeTotals(
     }
     deliveryFee = deliveryCalc.finalFee;
   } else {
-    deliveryFee = subtotal >= 1000 || validatedItems.length === 0 ? 0 : 40;
+    const isGarudaFree = String(couponCode || '').trim().toUpperCase() === 'GARUDAFREE' && subtotal >= 500;
+    deliveryFee = isGarudaFree || validatedItems.length === 0 ? 0 : 40;
   }
 
   let discount = 0;

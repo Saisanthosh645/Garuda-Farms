@@ -10,7 +10,7 @@ const router = Router();
  */
 router.post('/calculate', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { pincode, subtotal = 0 } = req.body || {};
+    const { pincode, subtotal = 0, couponCode } = req.body || {};
 
     if (!pincode) {
       res.status(400).json({
@@ -22,7 +22,7 @@ router.post('/calculate', async (req: Request, res: Response): Promise<void> => 
     }
 
     const numericSubtotal = Math.max(0, Number(subtotal) || 0);
-    const result = await calculateServerDeliveryFee(String(pincode), numericSubtotal);
+    const result = await calculateServerDeliveryFee(String(pincode), numericSubtotal, couponCode);
 
     if (!result.ok || !result.serviceable) {
       res.status(200).json({
