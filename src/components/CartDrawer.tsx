@@ -28,7 +28,8 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   const [couponError, setCouponError] = useState('');
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const isGarudaFreeApplied = appliedCouponCode?.toUpperCase() === 'GARUDAFREE' && subtotal >= 500;
+  const freeShippingThreshold = 500;
+  const isGarudaFreeApplied = appliedCouponCode?.toUpperCase() === 'GARUDAFREE' && subtotal >= freeShippingThreshold;
   const deliveryFee = items.length === 0 || isGarudaFreeApplied ? 0 : 40;
   const discountAmount = appliedCouponCode ? (calculatedDiscount || (appliedCouponCode.toUpperCase() === 'GARUDAFREE' ? 0 : Math.round(subtotal * 0.1))) : 0;
   const total = Math.max(0, subtotal + deliveryFee - discountAmount);

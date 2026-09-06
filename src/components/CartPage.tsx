@@ -169,10 +169,12 @@ export const CartPage: React.FC<CartPageProps> = ({
                   <div className="flex items-center gap-2 text-[#0F2D1F]">
                     <Truck className="w-4 h-4 text-[#2D6A4F]" />
                     <span>
-                      {subtotal >= freeShippingThreshold ? (
-                        <span className="text-[#2D6A4F] font-black">🎉 You unlocked FREE Farm Fresh Delivery!</span>
+                      {isGarudaFreeApplied ? (
+                        <span className="text-[#2D6A4F] font-black">🎉 You unlocked FREE Farm Fresh Delivery with GARUDAFREE!</span>
+                      ) : subtotal >= freeShippingThreshold ? (
+                        <span className="text-[#8C6239]">Apply secret coupon code <strong>GARUDAFREE</strong> for FREE Delivery!</span>
                       ) : (
-                        <span>Add <strong>₹{freeShippingThreshold - subtotal}</strong> more for <strong>FREE Delivery</strong></span>
+                        <span>Add <strong>₹{freeShippingThreshold - subtotal}</strong> more & apply <strong>GARUDAFREE</strong> for <strong>FREE Delivery</strong></span>
                       )}
                     </span>
                   </div>
