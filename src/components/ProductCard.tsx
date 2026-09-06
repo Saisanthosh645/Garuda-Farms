@@ -105,10 +105,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             {/* Subtle Gradient vignette */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
-            {/* Category Tag */}
-            <span className="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-[#0F2D1F]/80 backdrop-blur-md text-[#FAF8F2] text-[10px] font-extrabold uppercase tracking-wider">
-              {product.category}
-            </span>
+            {/* Category & Organic Seal Badge */}
+            <div className="absolute top-3 left-3 flex flex-col gap-1 z-10">
+              <span className="px-2.5 py-1 rounded-full bg-[#0F2D1F]/90 backdrop-blur-md text-[#FAF8F2] text-[10px] font-extrabold uppercase tracking-wider border border-[#D4A373]/30 shadow-md">
+                🌿 {product.category}
+              </span>
+              <span className="px-2 py-0.5 rounded-full bg-[#D8F3DC] text-[#1B4332] text-[9px] font-bold uppercase tracking-wider border border-[#52B788]/40 shadow-sm flex items-center gap-1">
+                🌾 100% Pure Organic
+              </span>
+            </div>
 
             {/* Discount / Special Badge */}
             {product.badge && (
@@ -125,7 +130,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
                 onToggleWishlist(product);
               }}
               aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
-              className="absolute top-3 right-3 w-9 h-9 rounded-full bg-[#FAF8F2]/90 backdrop-blur-md flex items-center justify-center text-[#0F2D1F] hover:text-[#E76F51] hover:bg-white shadow-sm transition-all active:scale-90"
+              className="absolute top-3 right-3 w-9 h-9 rounded-full bg-[#FAF8F2]/90 backdrop-blur-md flex items-center justify-center text-[#0F2D1F] hover:text-[#E76F51] hover:bg-white shadow-sm transition-all active:scale-90 z-10"
             >
               <Heart
                 className={`w-4 h-4 transition-colors ${
@@ -138,7 +143,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             <button
               id={`card-quickview-${product.id}`}
               onClick={() => onQuickView(product)}
-              className="absolute bottom-3 right-3 px-3 py-1.5 rounded-lg bg-[#FAF8F2]/90 hover:bg-[#FAF8F2] text-[#0F2D1F] text-xs font-bold flex items-center gap-1.5 shadow-md backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-y-2 group-hover:translate-y-0"
+              className="absolute bottom-3 right-3 px-3 py-1.5 rounded-lg bg-[#FAF8F2]/90 hover:bg-[#FAF8F2] text-[#0F2D1F] text-xs font-bold flex items-center gap-1.5 shadow-md backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-all duration-200 transform translate-y-2 group-hover:translate-y-0 z-10"
             >
               <Eye className="w-3.5 h-3.5" />
               <span>Preview</span>
@@ -152,8 +157,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </div>
             <span className="text-xs font-bold text-[#0F2D1F]">{product.rating}</span>
             <span className="text-xs text-[#889B92]">({product.reviews})</span>
-            <span className="text-[11px] text-[#52B788] font-bold ml-auto flex items-center gap-1">
-              <Sparkles className="w-2.5 h-2.5" /> Farm Fresh
+            <span className="text-[11px] text-[#2D6A4F] font-extrabold ml-auto flex items-center gap-1 bg-[#E9EDC9]/60 px-2 py-0.5 rounded-full border border-[#D4A373]/30">
+              <Sparkles className="w-2.5 h-2.5 text-[#2D6A4F]" /> Dawn Harvest
             </span>
           </div>
 
@@ -166,8 +171,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </h3>
 
           {/* Farm Origin */}
-          <p className="text-xs text-[#8C6239] font-medium mt-1 truncate">
-            {product.farmOrigin}
+          <p className="text-xs text-[#8C6239] font-bold mt-1 truncate flex items-center gap-1">
+            <span>🏡</span> {product.farmOrigin || 'Garuda Organic Sanctuary, Chevella'}
           </p>
 
           {/* Description snippet */}

@@ -92,3 +92,36 @@
 .text-stroke-gold {
   -webkit-text-stroke: 1px rgba(212, 163, 115, 0.4);
 }
+
+/* Organic Farm Theme Utilities */
+.organic-badge {
+  background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%);
+  color: #faf8f2;
+  box-shadow: 0 4px 14px rgba(45, 106, 79, 0.25);
+}
+
+.organic-card-glow {
+  box-shadow: 0 10px 30px -10px rgba(15, 45, 31, 0.08), 0 4px 12px -2px rgba(212, 163, 115, 0.12);
+}
+
+.organic-card-glow:hover {
+  box-shadow: 0 20px 40px -12px rgba(15, 45, 31, 0.18), 0 8px 20px -4px rgba(45, 106, 79, 0.2);
+  transform: translateY(-3px);
+}
+
+.bg-organic-pattern {
+  background-color: #faf8f2;
+  background-image: radial-gradient(#2d6a4f 0.5px, transparent 0.5px), radial-gradient(#d4a373 0.5px, #faf8f2 0.5px);
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
+  background-opacity: 0.05;
+}
+
+@keyframes pulse-subtle {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.03); }
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 3s ease-in-out infinite;
+}

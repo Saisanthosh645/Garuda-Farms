@@ -86,15 +86,15 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Store Title & Narrative */}
         <div className="text-center max-w-3xl mx-auto mb-12">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#2D6A4F]/10 text-[#2D6A4F] text-xs font-extrabold tracking-widest uppercase mb-3">
-            <Sparkles className="w-3.5 h-3.5 text-[#E9C46A]" />
-            GARUDA HARVEST STORE
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#D8F3DC] text-[#1B4332] text-xs font-extrabold tracking-widest uppercase mb-3 border border-[#52B788]/40 shadow-sm">
+            <Sparkles className="w-3.5 h-3.5 text-[#2D6A4F]" />
+            100% PURE FARM-TO-TABLE HARVEST
           </div>
           <h2 className="font-heading text-3xl sm:text-5xl font-extrabold text-[#0F2D1F] tracking-tight">
-            FRESH HARVESTS. REAL PURITY.
+            AUTHENTIC ORGANIC FOOD. UNTOUCHED NATURE.
           </h2>
-          <p className="mt-4 text-base sm:text-lg text-[#556960] font-normal leading-relaxed">
-            Explore all 50 single-origin harvests — country eggs, free-range poultry, raw forest honey, cold-pressed oils, and heirloom crops.
+          <p className="mt-4 text-base sm:text-lg text-[#3B4E44] font-medium leading-relaxed">
+            Hand-harvested daily at dawn from the Chevella Sanctuary. Zero synthetic pesticides, zero antibiotics, zero artificial processing — just pure, nutrient-rich organic goodness delivered direct to your home.
           </p>
         </div>
 
