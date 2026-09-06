@@ -21,14 +21,17 @@ interface HeroProps {
   onViewCart?: () => void;
 }
 
-// Exact HD Video from Pixabay (Rooster & Village Farm - 10685)
-const HERO_ROOSTER_VIDEO = {
-  id: 'rooster-village-farm-10685',
-  title: 'Free-Range Heritage Rooster & Village Farm (HD)',
-  localUrl: '/videos/hero-rooster.mp4',
-  cdnUrl: 'https://cdn.pixabay.com/video/2017/07/16/10685-226624850_large.mp4',
-  poster: '/videos/hero-rooster.jpg',
-  fallbackPoster: 'https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?auto=format&fit=crop&w=1920&q=80',
+import { ClayPot3DCanvas } from './ClayPot3DCanvas';
+import { MugguDivider, MugguFlower, ClayArtMotif } from './MugguCurves';
+
+// Serene 100% Pure Organic Farm Dew & Sunshine Loop
+const HERO_ORGANIC_VIDEO = {
+  id: 'organic-farm-dew-sunshine',
+  title: 'Pristine Organic Farm Dew & Sunshine (1080p HD)',
+  localUrl: '/assets/organic-farm-hero.png',
+  cdnUrl: 'https://assets.mixkit.co/videos/preview/mixkit-sun-shining-through-green-leaves-42907-large.mp4',
+  poster: '/assets/organic-farm-hero.png',
+  fallbackPoster: 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=1920&q=80',
 };
 
 export const Hero: React.FC<HeroProps> = ({ onBuyNow, onExploreFarm, onViewCart }) => {
@@ -170,13 +173,13 @@ export const Hero: React.FC<HeroProps> = ({ onBuyNow, onExploreFarm, onViewCart 
           loop
           playsInline
           onLoadedData={() => setVideoLoaded(true)}
-          poster={HERO_ROOSTER_VIDEO.poster}
+          poster={HERO_ORGANIC_VIDEO.poster}
           className={`w-full h-full object-cover transition-opacity duration-700 ${
             videoLoaded ? 'opacity-100' : 'opacity-0'
           }`}
         >
-          <source src={HERO_ROOSTER_VIDEO.localUrl} type="video/mp4" />
-          <source src={HERO_ROOSTER_VIDEO.cdnUrl} type="video/mp4" />
+          <source src={HERO_ORGANIC_VIDEO.localUrl} type="video/mp4" />
+          <source src={HERO_ORGANIC_VIDEO.cdnUrl} type="video/mp4" />
         </video>
 
         {/* Fallback when video is loading */}
@@ -184,7 +187,7 @@ export const Hero: React.FC<HeroProps> = ({ onBuyNow, onExploreFarm, onViewCart 
           className={`absolute inset-0 bg-cover bg-center transition-opacity duration-700 ${
             videoLoaded ? 'opacity-0' : 'opacity-100'
           }`}
-          style={{ backgroundImage: `url(${HERO_ROOSTER_VIDEO.poster}), url(${HERO_ROOSTER_VIDEO.fallbackPoster})` }}
+          style={{ backgroundImage: `url(${HERO_ORGANIC_VIDEO.poster}), url(${HERO_ORGANIC_VIDEO.fallbackPoster})` }}
         />
 
         {/* Rich organic gradient overlay: deep forest bottom, earthy mid, crystal top */}
@@ -272,11 +275,23 @@ export const Hero: React.FC<HeroProps> = ({ onBuyNow, onExploreFarm, onViewCart 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, delay: 0.42 }}
-          className="max-w-2xl text-base sm:text-lg md:text-xl text-[#FAF8F2]/90 leading-relaxed font-body mb-10 font-medium drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]"
+          className="max-w-2xl text-base sm:text-lg md:text-xl text-[#FAF8F2]/90 leading-relaxed font-body mb-6 font-medium drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]"
         >
           Fresh, natural and pure farm products, nurtured on regenerative soil and delivered{' '}
           <span className="text-[#D4A373] font-semibold">directly to your doorstep</span> within hours of harvest.
         </motion.p>
+
+        {/* Traditional Indian Muggu Rice-Powder Divider */}
+        <MugguDivider color="#E9C46A" className="my-3 opacity-90 max-w-xl" />
+
+        {/* Floating Interactive 3D Clay Pot Model with Scroll Rotation */}
+        <div className="relative my-4 flex flex-col items-center justify-center">
+          <ClayPot3DCanvas size={280} className="z-10" />
+          <div className="text-[11px] font-bold tracking-widest text-[#D4A373] uppercase flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1B4332]/70 border border-[#D4A373]/30 backdrop-blur-sm shadow-md mt-[-10px] z-20">
+            <span>🏺</span>
+            <span>HAND-CRAFTED TERRACOTTA CLAY POT • SCROLL TO ROTATE IN 3D</span>
+          </div>
+        </div>
 
         {/* Action Buttons — Organic warm style */}
         <motion.div

@@ -3,6 +3,8 @@ import { motion } from 'motion/react';
 import { Sprout, ShieldCheck, Trees, Truck, ArrowUpRight } from 'lucide-react';
 import { FARM_BENEFITS } from '../data/farmData';
 
+import { MugguDivider, MugguFlower } from './MugguCurves';
+
 interface BenefitsSectionProps {
   onLearnMore?: () => void;
 }
@@ -34,6 +36,7 @@ export const BenefitsSection: React.FC<BenefitsSectionProps> = ({ onLearnMore })
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16 sm:mb-20">
+          <MugguFlower color="#B85D38" size={52} className="mb-2 opacity-85" />
           <motion.div
             initial={{ opacity: 0, y: 15 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -43,6 +46,7 @@ export const BenefitsSection: React.FC<BenefitsSectionProps> = ({ onLearnMore })
           >
             THE GARUDA DISTINCTION
           </motion.div>
+          <MugguDivider color="#B85D38" className="my-3 opacity-75" />
 
           <motion.h2
             initial={{ opacity: 0, y: 20 }}

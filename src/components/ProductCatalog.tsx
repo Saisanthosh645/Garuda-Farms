@@ -5,6 +5,7 @@ import { PRODUCTS, CATEGORIES } from '../data/products';
 import { Product, ProductCategory } from '../types';
 import { ProductCard } from './ProductCard';
 import { api } from '../lib/api';
+import { MugguDivider, ClayArtMotif } from './MugguCurves';
 
 interface ProductCatalogProps {
   wishlistIds: number[];
@@ -84,16 +85,21 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
   return (
     <section id="products" className="py-20 sm:py-28 bg-[#FAF8F2] text-[#19241C] relative">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Store Title & Narrative */}
-        <div className="text-center max-w-3xl mx-auto mb-12">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#D8F3DC] text-[#1B4332] text-xs font-extrabold tracking-widest uppercase mb-3 border border-[#52B788]/40 shadow-sm">
-            <Sparkles className="w-3.5 h-3.5 text-[#2D6A4F]" />
-            100% PURE FARM-TO-TABLE HARVEST
+        {/* Section Header */}
+        <div className="text-center max-w-3xl mx-auto mb-10">
+          <div className="flex items-center justify-center gap-3 mb-3">
+            <ClayArtMotif color="#B85D38" size={40} />
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-[#2D6A4F]/10 text-[#2D6A4F] text-xs font-extrabold tracking-widest uppercase">
+              <Sparkles className="w-3.5 h-3.5 text-[#2D6A4F]" />
+              100% PURE FARM-TO-TABLE HARVEST
+            </div>
+            <ClayArtMotif color="#B85D38" size={40} />
           </div>
           <h2 className="font-heading text-3xl sm:text-5xl font-extrabold text-[#0F2D1F] tracking-tight">
             AUTHENTIC ORGANIC FOOD. UNTOUCHED NATURE.
           </h2>
-          <p className="mt-4 text-base sm:text-lg text-[#3B4E44] font-medium leading-relaxed">
+          <MugguDivider color="#C8A882" className="my-2 opacity-80" />
+          <p className="mt-3 text-base sm:text-lg text-[#3B4E44] font-medium leading-relaxed">
             Hand-harvested daily at dawn from the Chevella Sanctuary. Zero synthetic pesticides, zero antibiotics, zero artificial processing — just pure, nutrient-rich organic goodness delivered direct to your home.
           </p>
         </div>
