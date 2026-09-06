@@ -1545,6 +1545,7 @@ function StoreSettingsSection({ toast }: { toast: ReturnType<typeof useToast> })
   const [settings, setSettings] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [testingSheet, setTestingSheet] = useState(false);
   const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
@@ -1567,6 +1568,18 @@ function StoreSettingsSection({ toast }: { toast: ReturnType<typeof useToast> })
     else toast.show('error', res.error || 'Save failed');
   };
 
+  const handleTestSheet = async () => {
+    setTestingSheet(true);
+    const url = settings.google_sheets_webhook_url;
+    const res = await api.testGoogleSheets(url);
+    setTestingSheet(false);
+    if (res.ok) {
+      toast.show('success', res.message || 'Test row sent to Google Sheets!');
+    } else {
+      toast.show('error', res.error || 'Failed to connect to Google Sheets Webhook');
+    }
+  };
+
   const Field = ({ label, k, type = 'text', placeholder = '' }: { label: string; k: string; type?: string; placeholder?: string }) => (
     <div>
       <label className="text-xs font-bold text-stone-600 block mb-1">{label}</label>
@@ -1587,6 +1600,62 @@ function StoreSettingsSection({ toast }: { toast: ReturnType<typeof useToast> })
         <Field label="Contact Phone" k="store_phone" placeholder="+91 XXXXX XXXXX" />
         <Field label="WhatsApp Number" k="store_whatsapp" placeholder="+91 XXXXX XXXXX" />
         <Field label="Store Address" k="store_address" />
+      </div>
+
+      {/* Google Sheets Real-Time Backup */}
+      <div className="bg-emerald-950 text-white rounded-2xl border border-emerald-900 p-5 shadow-md space-y-4">
+        <div className="flex items-center justify-between border-b border-emerald-800/60 pb-3">
+          <div>
+            <h3 className="font-bold text-white text-sm flex items-center gap-2">
+              <FileText className="w-4 h-4 text-[#52B788]" />
+              Google Sheets Live Order Backup
+            </h3>
+            <p className="text-[11px] text-emerald-300/80 mt-0.5">
+              Automatically backs up every order to your Google Sheet in real time.
+            </p>
+          </div>
+          <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+            settings.google_sheets_webhook_url ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+          }`}>
+            {settings.google_sheets_webhook_url ? '● Connected' : '○ Not Configured'}
+          </span>
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-emerald-200 block mb-1">
+            Google Apps Script Web App URL
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="text"
+              value={settings.google_sheets_webhook_url || ''}
+              onChange={(e) => update('google_sheets_webhook_url', e.target.value)}
+              placeholder="https://script.google.com/macros/s/AKfycb.../exec"
+              className="flex-1 px-3 py-2.5 rounded-xl bg-emerald-900/60 border border-emerald-700/60 text-white text-xs font-mono focus:outline-none focus:border-[#52B788] placeholder-emerald-700"
+            />
+            <button
+              type="button"
+              onClick={handleTestSheet}
+              disabled={testingSheet || !settings.google_sheets_webhook_url}
+              className="px-3.5 py-2.5 rounded-xl bg-[#2D6A4F] hover:bg-[#52B788] hover:text-emerald-950 text-white text-xs font-bold transition-all disabled:opacity-40 flex items-center gap-1.5 shrink-0"
+            >
+              {testingSheet ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+              <span>Test Connection</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="bg-emerald-900/40 rounded-xl p-3 border border-emerald-800/40 text-[11px] text-emerald-200/90 space-y-1.5">
+          <p className="font-bold text-emerald-300">📋 Setup Steps for Google Sheets Backup:</p>
+          <ol className="list-decimal list-inside space-y-1 text-[11px] text-emerald-200/80">
+            <li>Create a new Google Sheet on your Google Drive.</li>
+            <li>Go to <strong>Extensions &gt; Apps Script</strong>.</li>
+            <li>Paste the 8-line script code (see documentation or ask support).</li>
+            <li>Click <strong>Deploy &gt; New deployment &gt; Select type: Web App</strong>.</li>
+            <li>Set <em>Execute as: Me</em> and <em>Who has access: <strong>Anyone</strong></em>.</li>
+            <li>Copy the Web App URL (ends with <code>/exec</code>) and paste it above, then click <strong>Save Settings</strong>.</li>
+          </ol>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm space-y-4">
@@ -1623,6 +1692,7 @@ function StoreSettingsSection({ toast }: { toast: ReturnType<typeof useToast> })
     </div>
   );
 }
+
 
 // ─── SECTION: Audit Log ───────────────────────────────────────────────────────
 function AuditLogSection({ toast }: { toast: ReturnType<typeof useToast> }) {

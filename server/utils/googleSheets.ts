@@ -71,10 +71,16 @@ export async function syncOrderToGoogleSheets(order: OrderSyncData): Promise<voi
     };
 
     if (webhookUrl && webhookUrl.startsWith('http')) {
-      fetch(webhookUrl, {
+      const encodedData = encodeURIComponent(JSON.stringify(payload));
+      const urlWithQuery = webhookUrl.includes('?') 
+        ? `${webhookUrl}&data=${encodedData}` 
+        : `${webhookUrl}?data=${encodedData}`;
+
+      fetch(urlWithQuery, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        redirect: 'follow',
       })
         .then((res) => {
           console.log(`[Google Sheets Sync] Order #${order.id} synced to Google Sheets (Status: ${res.status})`);
@@ -83,7 +89,7 @@ export async function syncOrderToGoogleSheets(order: OrderSyncData): Promise<voi
           console.warn(`[Google Sheets Sync] Failed to send order #${order.id} to Google Sheets:`, err.message);
         });
     } else {
-      console.log(`[Google Sheets Sync] Order #${order.id} prepared. (Configure GOOGLE_SHEETS_WEBHOOK_URL to enable live sheet push)`);
+      console.log(`[Google Sheets Sync] Order #${order.id} prepared. (Configure GOOGLE_SHEETS_WEBHOOK_URL in Vercel or store_settings to enable live sheet push)`);
     }
   } catch (err: any) {
     console.warn(`[Google Sheets Sync Warning]:`, err.message);

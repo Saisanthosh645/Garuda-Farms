@@ -597,6 +597,21 @@ export const api = {
     }
   },
 
+  async testGoogleSheets(webhook_url?: string): Promise<{ ok: boolean; message?: string; error?: string }> {
+    const headers = await getAuthHeader();
+    try {
+      const res = await fetch('/api/admin/test-google-sheets', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ webhook_url }),
+      });
+      return res.json();
+    } catch (err: any) {
+      return { ok: false, error: err.message };
+    }
+  },
+
+
   // Image Upload
   async uploadImage(file: File): Promise<{ ok: boolean; url?: string; error?: string }> {
     try {

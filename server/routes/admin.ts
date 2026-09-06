@@ -833,6 +833,64 @@ router.delete('/coupons/:id', requireAdmin, async (req: Request, res: Response):
   }
 });
 
+// POST /api/admin/test-google-sheets — Test sending a test row to Google Sheets
+router.post('/test-google-sheets', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { webhook_url } = req.body || {};
+    let url = webhook_url || process.env.GOOGLE_SHEETS_WEBHOOK_URL;
+    if (!url) {
+      const supabase = getSupabase();
+      if (supabase) {
+        const { data } = await supabase.from('store_settings').select('value').eq('key', 'google_sheets_webhook_url').maybeSingle();
+        if (data && data.value) url = typeof data.value === 'string' ? data.value.replace(/^"|"$/g, '') : data.value;
+      }
+    }
+
+    if (!url || !url.startsWith('http')) {
+      res.status(400).json({ ok: false, error: 'No valid Google Sheets Webhook URL provided or configured.' });
+      return;
+    }
+
+    const testPayload = {
+      order_id: 'TEST-' + Math.floor(1000 + Math.random() * 9000),
+      date: new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }),
+      customer_name: 'Garuda Test Connection',
+      customer_email: 'test@garudafarms.com',
+      customer_phone: '+91 98765 43210',
+      shipping_address: 'Test Farm Address, Chevella - 501503',
+      delivery_slot: 'Morning 7am-10am',
+      items: 'Fresh Country Eggs (Pack of 12 × 1)',
+      subtotal: 150,
+      delivery_charge: 30,
+      discount_amount: 0,
+      coupon_code: 'TEST',
+      total_amount: 180,
+      payment_method: 'Test Payment',
+      payment_status: 'Paid',
+      order_status: 'Confirmed',
+    };
+
+    const encodedData = encodeURIComponent(JSON.stringify(testPayload));
+    const urlWithQuery = url.includes('?') ? `${url}&data=${encodedData}` : `${url}?data=${encodedData}`;
+
+    const response = await fetch(urlWithQuery, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(testPayload),
+      redirect: 'follow',
+    });
+
+    if (response.ok || response.status === 302 || response.status === 200) {
+      res.json({ ok: true, message: 'Test row successfully sent to Google Sheets!' });
+    } else {
+      res.status(400).json({ ok: false, error: `Google returned HTTP status ${response.status}` });
+    }
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 export { auditLog };
 export default router;
+
 
