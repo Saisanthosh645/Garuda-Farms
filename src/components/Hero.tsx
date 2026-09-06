@@ -24,12 +24,13 @@ interface HeroProps {
 import { ClayPot3DCanvas } from './ClayPot3DCanvas';
 import { MugguDivider, MugguFlower, ClayArtMotif } from './MugguCurves';
 
-// Serene 100% Pure Organic Farm Dew & Sunshine Loop
+// Lush Green Organic Farm Trees Moving in Breeze Video Loop
 const HERO_ORGANIC_VIDEO = {
-  id: 'organic-farm-dew-sunshine',
-  title: 'Pristine Organic Farm Dew & Sunshine (1080p HD)',
-  localUrl: '/assets/organic-farm-hero.png',
+  id: 'organic-farm-trees-breeze',
+  title: 'Lush Green Organic Farm Trees Moving in Sunlight (1080p HD)',
   cdnUrl: 'https://assets.mixkit.co/videos/preview/mixkit-sun-shining-through-green-leaves-42907-large.mp4',
+  secondaryUrl: 'https://cdn.pixabay.com/video/2021/08/11/84687-586716075_large.mp4',
+  tertiaryUrl: 'https://cdn.pixabay.com/video/2020/05/25/40149-424077874_large.mp4',
   poster: '/assets/organic-farm-hero.png',
   fallbackPoster: 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=1920&q=80',
 };
@@ -174,12 +175,11 @@ export const Hero: React.FC<HeroProps> = ({ onBuyNow, onExploreFarm, onViewCart 
           playsInline
           onLoadedData={() => setVideoLoaded(true)}
           poster={HERO_ORGANIC_VIDEO.poster}
-          className={`w-full h-full object-cover transition-opacity duration-700 ${
-            videoLoaded ? 'opacity-100' : 'opacity-0'
-          }`}
+          className="w-full h-full object-cover"
         >
-          <source src={HERO_ORGANIC_VIDEO.localUrl} type="video/mp4" />
           <source src={HERO_ORGANIC_VIDEO.cdnUrl} type="video/mp4" />
+          <source src={HERO_ORGANIC_VIDEO.secondaryUrl} type="video/mp4" />
+          <source src={HERO_ORGANIC_VIDEO.tertiaryUrl} type="video/mp4" />
         </video>
 
         {/* Fallback when video is loading */}
@@ -283,15 +283,6 @@ export const Hero: React.FC<HeroProps> = ({ onBuyNow, onExploreFarm, onViewCart 
 
         {/* Traditional Indian Muggu Rice-Powder Divider */}
         <MugguDivider color="#E9C46A" className="my-3 opacity-90 max-w-xl" />
-
-        {/* Floating Interactive 3D Clay Pot Model with Scroll Rotation */}
-        <div className="relative my-4 flex flex-col items-center justify-center">
-          <ClayPot3DCanvas size={280} className="z-10" />
-          <div className="text-[11px] font-bold tracking-widest text-[#D4A373] uppercase flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1B4332]/70 border border-[#D4A373]/30 backdrop-blur-sm shadow-md mt-[-10px] z-20">
-            <span>🏺</span>
-            <span>HAND-CRAFTED TERRACOTTA CLAY POT • SCROLL TO ROTATE IN 3D</span>
-          </div>
-        </div>
 
         {/* Action Buttons — Organic warm style */}
         <motion.div
