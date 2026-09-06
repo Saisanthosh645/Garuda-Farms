@@ -13,6 +13,14 @@
     --color-earth: #8c6239;
     --color-gold: #d4a373;
     --color-gold-light: #e9c46a;
+    /* Organic palette additions */
+    --color-clay: #c8a882;
+    --color-parchment: #f0ebe1;
+    --color-bark: #3b2f1e;
+    --color-sage: #7daa8c;
+    --color-terracotta: #c77b58;
+    --color-harvest: #d4a055;
+    --color-moss: #4a7c59;
   }
 
   body {
@@ -33,6 +41,12 @@
   .font-body {
     font-family: var(--font-sans);
   }
+
+  /* Smooth text selection */
+  ::selection {
+    background: rgba(45, 106, 79, 0.25);
+    color: #0f2d1f;
+  }
 }
 
 /* Custom 3D & Animation utilities */
@@ -50,16 +64,16 @@
 
 /* Smooth custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #f0eae1;
+  background: #f0ebe1;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2d6a4f;
+  background: linear-gradient(180deg, #2d6a4f, #c8a882);
   border-radius: 4px;
 }
 
@@ -82,10 +96,17 @@
   border: 1px solid rgba(220, 210, 195, 0.6);
 }
 
+/* === ORGANIC GRAIN/NOISE TEXTURE === */
+.bg-grain {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 128px 128px;
+}
+
 /* Noise overlay */
 .bg-noise {
-  background-image: radial-gradient(rgba(0, 0, 0, 0.03) 1px, transparent 0);
-  background-size: 24px 24px;
+  background-image: radial-gradient(rgba(0, 0, 0, 0.035) 1px, transparent 0);
+  background-size: 20px 20px;
 }
 
 /* Text stroke */
@@ -93,7 +114,7 @@
   -webkit-text-stroke: 1px rgba(212, 163, 115, 0.4);
 }
 
-/* Organic Farm Theme Utilities */
+/* === ORGANIC FARM THEME UTILITIES === */
 .organic-badge {
   background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%);
   color: #faf8f2;
@@ -101,12 +122,42 @@
 }
 
 .organic-card-glow {
-  box-shadow: 0 10px 30px -10px rgba(15, 45, 31, 0.08), 0 4px 12px -2px rgba(212, 163, 115, 0.12);
+  box-shadow:
+    0 6px 24px -8px rgba(59, 47, 30, 0.10),
+    0 2px 8px -2px rgba(200, 168, 130, 0.15),
+    inset 0 1px 0 rgba(255,255,255,0.7);
+  transition: box-shadow 0.35s ease, transform 0.35s ease;
 }
 
 .organic-card-glow:hover {
-  box-shadow: 0 20px 40px -12px rgba(15, 45, 31, 0.18), 0 8px 20px -4px rgba(45, 106, 79, 0.2);
-  transform: translateY(-3px);
+  box-shadow:
+    0 20px 50px -12px rgba(59, 47, 30, 0.16),
+    0 8px 24px -4px rgba(45, 106, 79, 0.14),
+    inset 0 1px 0 rgba(255,255,255,0.8);
+  transform: translateY(-4px);
+}
+
+/* === CLAY CARD TEXTURE === */
+.clay-card {
+  background: linear-gradient(145deg, #fdfbf7 0%, #f5ede0 60%, #efe7d6 100%);
+  border: 1px solid rgba(200, 168, 130, 0.45);
+  box-shadow:
+    0 8px 32px rgba(59, 47, 30, 0.08),
+    0 2px 8px rgba(200, 168, 130, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    inset 0 -1px 0 rgba(200, 168, 130, 0.1);
+  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.clay-card:hover {
+  background: linear-gradient(145deg, #ffffff 0%, #fdf5e8 60%, #f5ead3 100%);
+  border-color: rgba(200, 168, 130, 0.7);
+  box-shadow:
+    0 24px 56px rgba(59, 47, 30, 0.14),
+    0 8px 24px rgba(45, 106, 79, 0.10),
+    0 4px 12px rgba(200, 168, 130, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  transform: translateY(-6px) scale(1.005);
 }
 
 .bg-organic-pattern {
@@ -117,11 +168,276 @@
   background-opacity: 0.05;
 }
 
+/* === ORGANIC SHAPE BORDER RADIUS === */
+.organic-shape {
+  border-radius: 60% 40% 55% 45% / 45% 60% 40% 55%;
+}
+
+.organic-shape-2 {
+  border-radius: 45% 55% 40% 60% / 55% 45% 60% 40%;
+}
+
+.organic-shape-3 {
+  border-radius: 50% 50% 35% 65% / 60% 40% 60% 40%;
+}
+
+/* === FARM SECTION DIVIDER === */
+.organic-divider {
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #c8a882 30%, #7daa8c 50%, #c8a882 70%, transparent);
+  opacity: 0.4;
+}
+
+/* === KEYFRAME ANIMATIONS === */
+
+@keyframes float-gentle {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  25% { transform: translateY(-12px) rotate(1.5deg); }
+  50% { transform: translateY(-20px) rotate(-0.5deg); }
+  75% { transform: translateY(-8px) rotate(2deg); }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-16px); }
+}
+
+@keyframes leaf-sway {
+  0%, 100% { transform: rotate(-8deg) scale(1); }
+  33% { transform: rotate(6deg) scale(1.05); }
+  66% { transform: rotate(-3deg) scale(0.97); }
+}
+
+@keyframes blob-drift {
+  0%, 100% {
+    border-radius: 60% 40% 55% 45% / 45% 60% 40% 55%;
+    transform: translate(0, 0) scale(1);
+  }
+  33% {
+    border-radius: 45% 55% 60% 40% / 60% 40% 55% 45%;
+    transform: translate(12px, -16px) scale(1.03);
+  }
+  66% {
+    border-radius: 55% 45% 40% 60% / 40% 60% 45% 55%;
+    transform: translate(-8px, 12px) scale(0.97);
+  }
+}
+
+@keyframes grain-drift {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-2px, 2px); }
+  40% { transform: translate(2px, -2px); }
+  60% { transform: translate(-1px, -1px); }
+  80% { transform: translate(1px, 1px); }
+  100% { transform: translate(0, 0); }
+}
+
+@keyframes shimmer-gold {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
 @keyframes pulse-subtle {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.85; transform: scale(1.03); }
 }
 
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes organic-bounce {
+  0%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-10px); }
+  60% { transform: translateY(-6px); }
+}
+
+/* === ANIMATION UTILITY CLASSES === */
+.animate-float-gentle {
+  animation: float-gentle 6s ease-in-out infinite;
+}
+
+.animate-float-slow {
+  animation: float-slow 8s ease-in-out infinite;
+}
+
+.animate-leaf-sway {
+  animation: leaf-sway 6s ease-in-out infinite;
+}
+
+.animate-blob-drift {
+  animation: blob-drift 12s ease-in-out infinite;
+}
+
+.animate-grain-drift {
+  animation: grain-drift 0.15s steps(1) infinite;
+}
+
+.animate-shimmer-gold {
+  background: linear-gradient(90deg, #d4a373 0%, #e9c46a 30%, #c8a882 50%, #e9c46a 70%, #d4a373 100%);
+  background-size: 200% auto;
+  animation: shimmer-gold 3s linear infinite;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
 .animate-pulse-subtle {
   animation: pulse-subtle 3s ease-in-out infinite;
+}
+
+.animate-fade-up {
+  animation: fade-up 0.7s ease forwards;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 20s linear infinite;
+}
+
+.animate-organic-bounce {
+  animation: organic-bounce 2.5s ease-in-out infinite;
+}
+
+/* Stagger delay helpers */
+.stagger-1 { animation-delay: 0.1s; }
+.stagger-2 { animation-delay: 0.2s; }
+.stagger-3 { animation-delay: 0.3s; }
+.stagger-4 { animation-delay: 0.4s; }
+.stagger-5 { animation-delay: 0.5s; }
+
+/* === SECTION TRANSITIONS === */
+.section-reveal {
+  opacity: 0;
+  transform: translateY(32px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+
+.section-reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* === NO SCROLLBAR UTILITY === */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* === ORGANIC BUTTON STYLES === */
+.btn-organic-primary {
+  background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 50%, #40916c 100%);
+  color: #faf8f2;
+  border: 1px solid rgba(116, 198, 157, 0.4);
+  box-shadow: 0 8px 24px rgba(45, 106, 79, 0.45), 0 2px 8px rgba(45, 106, 79, 0.25), inset 0 1px 0 rgba(255,255,255,0.15);
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.btn-organic-primary:hover {
+  background: linear-gradient(135deg, #2d6a4f 0%, #40916c 50%, #52b788 100%);
+  box-shadow: 0 16px 36px rgba(45, 106, 79, 0.55), 0 4px 12px rgba(82, 183, 136, 0.3), inset 0 1px 0 rgba(255,255,255,0.2);
+  transform: translateY(-2px) scale(1.02);
+}
+
+.btn-organic-secondary {
+  background: rgba(200, 168, 130, 0.12);
+  color: #3b2f1e;
+  border: 1.5px solid rgba(200, 168, 130, 0.5);
+  box-shadow: 0 4px 14px rgba(200, 168, 130, 0.15), inset 0 1px 0 rgba(255,255,255,0.6);
+  transition: all 0.3s ease;
+}
+
+.btn-organic-secondary:hover {
+  background: rgba(200, 168, 130, 0.22);
+  border-color: rgba(200, 168, 130, 0.75);
+  transform: translateY(-2px);
+}
+
+/* === IMAGE ORGANIC FRAME === */
+.img-organic-frame {
+  border-radius: 62% 38% 46% 54% / 60% 44% 56% 40%;
+  overflow: hidden;
+  transition: border-radius 0.5s ease;
+}
+
+.img-organic-frame:hover {
+  border-radius: 50% 50% 50% 50% / 50% 50% 50% 50%;
+}
+
+/* === SECTION BACKGROUND HELPERS === */
+.bg-parchment {
+  background-color: #f0ebe1;
+}
+
+.bg-cream-warm {
+  background-color: #faf6ee;
+}
+
+.bg-forest-deep {
+  background-color: #0a1f15;
+}
+
+.bg-earth-dark {
+  background: linear-gradient(160deg, #1a1108 0%, #2a1e0e 50%, #1c1308 100%);
+}
+
+/* === ORGANIC GLOW === */
+.glow-green {
+  box-shadow: 0 0 24px rgba(45, 106, 79, 0.4), 0 0 64px rgba(45, 106, 79, 0.15);
+}
+
+.glow-gold {
+  box-shadow: 0 0 24px rgba(212, 163, 115, 0.4), 0 0 64px rgba(212, 163, 115, 0.15);
+}
+
+/* === LEAF BLOB DECORATORS === */
+.leaf-blob {
+  position: absolute;
+  border-radius: 60% 40% 55% 45% / 45% 60% 40% 55%;
+  pointer-events: none;
+  opacity: 0.07;
+  animation: blob-drift 14s ease-in-out infinite;
+}
+
+/* === PREMIUM PRODUCT IMAGE HOVER === */
+.product-img-hover {
+  transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94), filter 0.4s ease;
+}
+
+.product-img-hover:hover {
+  transform: scale(1.08) rotate(1deg);
+  filter: brightness(1.04) saturate(1.08);
+}
+
+/* === ORGANIC RIBBON/BADGE === */
+.ribbon-organic {
+  background: linear-gradient(135deg, #c77b58, #d4a373);
+  color: white;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 4px 12px rgba(199, 123, 88, 0.35);
+}
+
+/* === PARALLAX HELPER === */
+.parallax-slow {
+  will-change: transform;
+}
+
+/* === HANDCRAFTED TYPOGRAPHY === */
+.text-handcrafted {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 600;
 }

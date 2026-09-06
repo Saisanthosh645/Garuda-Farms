@@ -89,16 +89,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           damping: 25,
           mass: 0.5,
         }}
-        className="h-full bg-[#FDFBF7] rounded-2xl border border-[#DCD2C3]/80 p-5 shadow-[0_4px_16px_rgba(15,45,31,0.04)] hover:shadow-[0_20px_40px_rgba(15,45,31,0.12)] flex flex-col justify-between transition-shadow duration-300 relative group overflow-hidden"
+        className="h-full clay-card p-5 flex flex-col justify-between relative group overflow-hidden"
+        style={{ borderRadius: '18px' }}
       >
         {/* Top Floating Badges & Wishlist */}
         <div className="relative">
           {/* Image Container with Zoom */}
-          <div className="relative rounded-xl overflow-hidden aspect-[4/3] bg-[#EFE8DC] mb-4">
+          <div className="relative overflow-hidden aspect-[4/3] mb-4" style={{ background: 'linear-gradient(145deg, #efe8d6, #e8ddc8)', borderRadius: '56% 44% 60% 40% / 48% 52% 48% 52%', transition: 'border-radius 0.6s ease' }}>
             <img
               src={product.image}
               alt={product.name}
-              className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+              className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110 group-hover:brightness-105 group-hover:saturate-110"
               loading="lazy"
             />
 
@@ -107,17 +108,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({
 
             {/* Category & Organic Seal Badge */}
             <div className="absolute top-3 left-3 flex flex-col gap-1 z-10">
-              <span className="px-2.5 py-1 rounded-full bg-[#0F2D1F]/90 backdrop-blur-md text-[#FAF8F2] text-[10px] font-extrabold uppercase tracking-wider border border-[#D4A373]/30 shadow-md">
+              <span className="px-2.5 py-1 text-[#FAF8F2] text-[10px] font-extrabold uppercase tracking-wider shadow-md" style={{ background: 'linear-gradient(135deg, rgba(15,45,31,0.92),rgba(45,106,79,0.85))', backdropFilter: 'blur(10px)', border: '1px solid rgba(212,163,115,0.3)', borderRadius: '20px 20px 20px 4px' }}>
                 🌿 {product.category}
               </span>
-              <span className="px-2 py-0.5 rounded-full bg-[#D8F3DC] text-[#1B4332] text-[9px] font-bold uppercase tracking-wider border border-[#52B788]/40 shadow-sm flex items-center gap-1">
+              <span className="px-2 py-0.5 text-[#1B4332] text-[9px] font-bold uppercase tracking-wider shadow-sm flex items-center gap-1" style={{ background: 'rgba(216,243,220,0.95)', border: '1px solid rgba(82,183,136,0.5)', borderRadius: '4px 20px 20px 20px' }}>
                 🌾 100% Pure Organic
               </span>
             </div>
 
             {/* Discount / Special Badge */}
             {product.badge && (
-              <span className="absolute bottom-3 left-3 px-2.5 py-1 rounded-full bg-[#D4A373] text-[#0F2D1F] text-[10px] font-black uppercase tracking-wider shadow-md">
+              <span className="absolute bottom-3 left-3 px-2.5 py-1 text-[#0F2D1F] text-[10px] font-black uppercase tracking-wider shadow-md" style={{ background: 'linear-gradient(135deg, #E9C46A, #D4A373)', borderRadius: '6px 20px 20px 20px' }}>
                 {product.badge}
               </span>
             )}
@@ -157,7 +158,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </div>
             <span className="text-xs font-bold text-[#0F2D1F]">{product.rating}</span>
             <span className="text-xs text-[#889B92]">({product.reviews})</span>
-            <span className="text-[11px] text-[#2D6A4F] font-extrabold ml-auto flex items-center gap-1 bg-[#E9EDC9]/60 px-2 py-0.5 rounded-full border border-[#D4A373]/30">
+            <span className="text-[11px] text-[#2D6A4F] font-extrabold ml-auto flex items-center gap-1 px-2 py-0.5" style={{ background: 'linear-gradient(135deg,rgba(233,237,201,0.7),rgba(200,168,130,0.2))', border: '1px solid rgba(212,163,115,0.35)', borderRadius: '20px' }}>
               <Sparkles className="w-2.5 h-2.5 text-[#2D6A4F]" /> Dawn Harvest
             </span>
           </div>
@@ -182,7 +183,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
 
         {/* Weight Selector & Price Controls */}
-        <div className="mt-4 pt-3 border-t border-[#EFE8DC]">
+        <div className="mt-4 pt-3" style={{ borderTop: '1px solid rgba(200,168,130,0.4)' }}>
           {/* Weight Variant Pills */}
           <div className="mb-3">
             <label className="text-[10px] font-bold uppercase tracking-wider text-[#8C6239] block mb-1.5">
@@ -242,13 +243,26 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             id={`product-add-btn-${product.id}`}
             disabled={product.stock === false}
             onClick={handleAdd}
-            className={`w-full py-3 rounded-xl text-xs font-bold tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-2 shadow-sm ${
+            className={`w-full py-3 text-xs font-bold tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-2 ${
               product.stock === false
-                ? 'bg-stone-300 text-stone-500 cursor-not-allowed shadow-none'
+                ? 'bg-stone-300 text-stone-500 cursor-not-allowed'
                 : isAdded
-                ? 'bg-[#52B788] text-[#0F2D1F] scale-98'
-                : 'bg-[#2D6A4F] hover:bg-[#1B4332] text-[#FAF8F2] hover:shadow-md active:scale-95'
+                ? 'scale-[0.98]'
+                : 'hover:scale-[1.02] active:scale-95'
             }`}
+            style={product.stock !== false ? (isAdded ? {
+              background: 'linear-gradient(135deg,#52B788,#40916C)',
+              color: '#0F2D1F',
+              border: '1px solid rgba(82,183,136,0.5)',
+              borderRadius: '14px',
+              boxShadow: '0 4px 16px rgba(82,183,136,0.35)',
+            } : {
+              background: 'linear-gradient(135deg,#1B4332 0%,#2D6A4F 50%,#40916C 100%)',
+              color: '#FAF8F2',
+              border: '1px solid rgba(116,198,157,0.4)',
+              borderRadius: '14px',
+              boxShadow: '0 6px 20px rgba(45,106,79,0.4), inset 0 1px 0 rgba(255,255,255,0.12)',
+            }) : { borderRadius: '14px' }}
           >
             {product.stock === false ? (
               <span>Currently Unavailable</span>

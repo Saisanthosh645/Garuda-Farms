@@ -154,12 +154,15 @@ export const Hero: React.FC<HeroProps> = ({ onBuyNow, onExploreFarm, onViewCart 
       id="hero"
       className="relative w-full min-h-[92vh] sm:min-h-screen flex items-center justify-center overflow-hidden bg-[#0A1A12] text-[#FAF8F2] select-none"
     >
-      {/* Background HD Rooster Video Layer - Crisp, no sun blur/fog */}
+      {/* Organic floating blob decorators (behind video) */}
+      <div className="absolute top-[-10%] right-[-8%] w-[520px] h-[520px] bg-[#1B4332]/40 rounded-[60%_40%_55%_45%/45%_60%_40%_55%] blur-[90px] pointer-events-none z-[1] animate-blob-drift" />
+      <div className="absolute bottom-[-5%] left-[-6%] w-[380px] h-[380px] bg-[#C8A882]/15 rounded-[45%_55%_40%_60%/60%_40%_55%_45%] blur-[70px] pointer-events-none z-[1]" style={{ animationDelay: '4s' }} />
+
+      {/* Background HD Rooster Video Layer */}
       <motion.div
         style={{ scale: bgScale }}
         className="absolute inset-0 w-full h-full z-0 overflow-hidden"
       >
-        {/* Exact Pixabay 1080p HD Video */}
         <video
           ref={videoRef}
           autoPlay
@@ -176,7 +179,7 @@ export const Hero: React.FC<HeroProps> = ({ onBuyNow, onExploreFarm, onViewCart 
           <source src={HERO_ROOSTER_VIDEO.cdnUrl} type="video/mp4" />
         </video>
 
-        {/* Fallback image when video is loading */}
+        {/* Fallback when video is loading */}
         <div
           className={`absolute inset-0 bg-cover bg-center transition-opacity duration-700 ${
             videoLoaded ? 'opacity-0' : 'opacity-100'
@@ -184,30 +187,29 @@ export const Hero: React.FC<HeroProps> = ({ onBuyNow, onExploreFarm, onViewCart 
           style={{ backgroundImage: `url(${HERO_ROOSTER_VIDEO.poster}), url(${HERO_ROOSTER_VIDEO.fallbackPoster})` }}
         />
 
-        {/* Crystal clear overlay for pristine HD video visibility while keeping text perfectly legible */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0A1A12]/75 via-transparent to-black/25 pointer-events-none" />
+        {/* Rich organic gradient overlay: deep forest bottom, earthy mid, crystal top */}
+        <div className="absolute inset-0 bg-gradient-to-t from-[#060F09]/85 via-[#0A1A12]/30 to-black/20 pointer-events-none" />
+        {/* Warm amber vignette on sides */}
+        <div className="absolute inset-0 bg-gradient-to-r from-[#0A1A12]/40 via-transparent to-[#0A1A12]/30 pointer-events-none" />
       </motion.div>
 
-      {/* Video Status Badge & Controls Bar (Bottom Right) */}
+      {/* Video Controls Bar (Bottom Right) */}
       <div className="absolute bottom-6 right-6 z-30 hidden sm:flex items-center gap-2.5 bg-[#0F2D1F]/90 backdrop-blur-md px-3.5 py-2 rounded-full border border-[#52B788]/40 shadow-xl text-xs font-semibold text-[#FAF8F2]">
         <div className="flex items-center gap-1.5 text-[11px] text-[#52B788] font-bold px-1.5 py-0.5 rounded-full bg-[#52B788]/15 border border-[#52B788]/30">
           <Film className="w-3 h-3" />
           <span>1080p HD</span>
         </div>
-
         <div className="h-3 w-[1px] bg-white/20" />
-
         <button
           onClick={toggleVideoPlay}
-          title={isPlaying ? 'Pause Rooster Video' : 'Play Rooster Video'}
+          title={isPlaying ? 'Pause' : 'Play'}
           className="p-1 rounded-full hover:bg-white/15 text-[#FAF8F2] transition-colors"
         >
           {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
         </button>
-
         <button
           onClick={toggleNatureAudio}
-          title={isAudioActive ? 'Mute Farm Sound' : 'Play Nature Birds & Farm Sound'}
+          title={isAudioActive ? 'Mute Farm Sound' : 'Play Nature Sound'}
           className={`p-1 rounded-full transition-colors ${
             isAudioActive ? 'bg-[#52B788] text-[#0F2D1F]' : 'hover:bg-white/15 text-[#FAF8F2]'
           }`}
@@ -221,120 +223,149 @@ export const Hero: React.FC<HeroProps> = ({ onBuyNow, onExploreFarm, onViewCart 
         style={{ y: textY, opacity: textOpacity }}
         className="relative z-20 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center pt-24 sm:pt-28 pb-16 flex flex-col items-center"
       >
-        {/* Eyebrow Badge */}
+        {/* Organic Eyebrow Badge */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.15 }}
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#0F2D1F]/80 border border-[#D4A373]/50 text-[#D4A373] text-xs font-bold tracking-[0.2em] uppercase backdrop-blur-md mb-6 shadow-lg"
+          initial={{ opacity: 0, y: 20, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          transition={{ duration: 0.7, delay: 0.15 }}
+          className="inline-flex items-center gap-2.5 px-5 py-2 mb-7 shadow-[0_4px_20px_rgba(212,163,115,0.25)]"
+          style={{
+            background: 'linear-gradient(135deg, rgba(15,45,31,0.9) 0%, rgba(27,67,50,0.85) 100%)',
+            border: '1px solid rgba(212,163,115,0.4)',
+            borderRadius: '50px 50px 50px 50px / 50px 50px 50px 50px',
+            backdropFilter: 'blur(12px)',
+          }}
         >
-          <Sparkles className="w-3.5 h-3.5 text-[#E9C46A]" />
-          <span>100% NATURAL • SINGLE-ORIGIN HARVEST</span>
+          {/* Organic leaf icon */}
+          <span className="text-sm leading-none">🌿</span>
+          <span className="text-[#D4A373] text-[11px] font-black tracking-[0.22em] uppercase">
+            100% NATURAL • SINGLE-ORIGIN HARVEST
+          </span>
+          <Sparkles className="w-3.5 h-3.5 text-[#E9C46A] animate-pulse-subtle" />
         </motion.div>
 
-        {/* Main Headline: FROM OUR FARM TO YOUR HOME */}
-        <div className="overflow-hidden mb-6">
+        {/* Main Headline — Organic cinematic style */}
+        <div className="overflow-hidden mb-5">
           <motion.h1
             initial={{ y: 80, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.8, delay: 0.25, ease: [0.16, 1, 0.3, 1] }}
-            className="font-heading text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[1.05] text-[#FAF8F2] drop-shadow-[0_4px_16px_rgba(0,0,0,0.85)]"
+            transition={{ duration: 0.85, delay: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            className="font-heading text-4xl sm:text-6xl md:text-7xl lg:text-8xl font-black tracking-tight leading-[1.05] text-[#FAF8F2] drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)]"
           >
             FROM OUR FARM <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#FAF8F2] via-[#E9C46A] to-[#D4A373]">
-              TO YOUR HOME
+            <span
+              className="font-display italic"
+              style={{
+                backgroundImage: 'linear-gradient(135deg, #FAF8F2 0%, #E9C46A 40%, #D4A373 70%, #C8A882 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >
+              to your Home
             </span>
           </motion.h1>
         </div>
 
-        {/* Narrative Description */}
+        {/* Organic tagline */}
         <motion.p
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.4 }}
-          className="max-w-2xl text-base sm:text-lg md:text-xl text-[#FAF8F2] leading-relaxed font-body mb-9 font-medium drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]"
+          transition={{ duration: 0.7, delay: 0.42 }}
+          className="max-w-2xl text-base sm:text-lg md:text-xl text-[#FAF8F2]/90 leading-relaxed font-body mb-10 font-medium drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]"
         >
-          Fresh, natural and pure farm products, nurtured on regenerative soil and delivered directly to your doorstep within hours of harvest.
+          Fresh, natural and pure farm products, nurtured on regenerative soil and delivered{' '}
+          <span className="text-[#D4A373] font-semibold">directly to your doorstep</span> within hours of harvest.
         </motion.p>
 
-        {/* Prominent Action Buttons: BUY NOW & EXPLORE */}
+        {/* Action Buttons — Organic warm style */}
         <motion.div
-          initial={{ opacity: 0, y: 25 }}
+          initial={{ opacity: 0, y: 28 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.55 }}
-          className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-5 w-full max-w-lg"
+          transition={{ duration: 0.7, delay: 0.58 }}
+          className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-5 w-full max-w-lg mb-12"
         >
-          {/* Main "BUY NOW" Action Button */}
+          {/* Primary CTA */}
           <button
             id="hero-buy-now-btn"
             onClick={onBuyNow}
-            className="w-full sm:w-auto px-9 py-4.5 rounded-full bg-gradient-to-r from-[#2D6A4F] via-[#40916C] to-[#52B788] text-[#FAF8F2] text-sm font-black tracking-widest uppercase shadow-[0_10px_30px_rgba(45,106,79,0.7)] hover:shadow-[0_15px_35px_rgba(82,183,136,0.85)] border border-[#74C69D]/60 flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 group cursor-pointer"
+            className="w-full sm:w-auto px-8 py-4 rounded-full text-[#FAF8F2] text-sm font-black tracking-widest uppercase flex items-center justify-center gap-3 transition-all hover:scale-105 active:scale-95 group cursor-pointer"
+            style={{
+              background: 'linear-gradient(135deg, #1B4332 0%, #2D6A4F 45%, #40916C 100%)',
+              boxShadow: '0 12px 32px rgba(45,106,79,0.65), 0 4px 12px rgba(45,106,79,0.35), inset 0 1px 0 rgba(255,255,255,0.15)',
+              border: '1px solid rgba(116,198,157,0.5)',
+            }}
           >
-            <ShoppingBag className="w-4 h-4 text-[#FAF8F2]" />
+            <ShoppingBag className="w-4 h-4" />
             <span>BUY NOW • EXPLORE 50 PRODUCTS</span>
-            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1.5 text-[#FAF8F2]" />
+            <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1.5" />
           </button>
 
-          {/* Secondary Farm Ethos CTA */}
+          {/* Secondary CTA */}
           <button
             id="hero-explore-farm-btn"
             onClick={onExploreFarm}
-            className="w-full sm:w-auto px-7 py-4.5 rounded-full bg-[#0F2D1F]/80 hover:bg-[#0F2D1F] text-[#FAF8F2] text-xs font-extrabold tracking-widest uppercase backdrop-blur-md border border-[#FAF8F2]/30 flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-md"
+            className="w-full sm:w-auto px-7 py-4 rounded-full text-[#FAF8F2] text-xs font-extrabold tracking-widest uppercase flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95"
+            style={{
+              background: 'rgba(15,45,31,0.75)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(200,168,130,0.35)',
+              boxShadow: '0 4px 16px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.08)',
+            }}
           >
+            <span>🌾</span>
             <span>OUR SANCTUARY STORY</span>
           </button>
         </motion.div>
 
-        {/* Quick Highlights Bar */}
+        {/* Organic Trust Highlights Bar */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.8, delay: 0.75 }}
-          className="mt-12 grid grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 text-left border-t border-white/20 pt-7 w-full max-w-3xl"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.78 }}
+          className="grid grid-cols-2 md:grid-cols-3 gap-3 sm:gap-4 text-left border-t border-white/15 pt-7 w-full max-w-3xl"
         >
-          <div className="flex items-center gap-3 bg-black/30 backdrop-blur-sm p-2.5 rounded-xl border border-white/10">
-            <div className="w-8 h-8 rounded-full bg-[#2D6A4F] flex items-center justify-center text-base shadow-sm">
-              🌱
-            </div>
-            <div>
-              <p className="text-xs font-bold text-[#FAF8F2] uppercase tracking-wider">Zero Chemicals</p>
-              <p className="text-[11px] text-[#FAF8F2]/80">Antibiotic & GMO Free</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3 bg-black/30 backdrop-blur-sm p-2.5 rounded-xl border border-white/10">
-            <div className="w-8 h-8 rounded-full bg-[#2D6A4F] flex items-center justify-center text-[#E9C46A] shadow-sm">
-              <ShieldCheck className="w-4 h-4 text-[#E9C46A]" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-[#FAF8F2] uppercase tracking-wider">Purity Tested</p>
-              <p className="text-[11px] text-[#FAF8F2]/80">18+ Batch Purity Checks</p>
-            </div>
-          </div>
-
-          <div className="hidden md:flex items-center gap-3 col-span-2 md:col-span-1 bg-black/30 backdrop-blur-sm p-2.5 rounded-xl border border-white/10">
-            <div className="w-8 h-8 rounded-full bg-[#2D6A4F] flex items-center justify-center text-[#D4A373] shadow-sm">
-              <Truck className="w-4 h-4 text-[#D4A373]" />
-            </div>
-            <div>
-              <p className="text-xs font-bold text-[#FAF8F2] uppercase tracking-wider">Morning Delivery</p>
-              <p className="text-[11px] text-[#FAF8F2]/80">Plucked fresh daily</p>
-            </div>
-          </div>
+          {[
+            { icon: '🌱', title: 'Zero Chemicals', sub: 'Antibiotic & GMO Free' },
+            { icon: '🛡️', title: 'Purity Tested', sub: '18+ Batch Checks', small: true },
+            { icon: '🚚', title: 'Morning Delivery', sub: 'Plucked fresh daily', hideMobile: true },
+          ].map((item, i) => (
+            <motion.div
+              key={i}
+              whileHover={{ scale: 1.03, y: -2 }}
+              className={`flex items-center gap-3 p-2.5 rounded-xl ${item.hideMobile ? 'hidden md:flex col-span-2 md:col-span-1' : ''}`}
+              style={{
+                background: 'rgba(0,0,0,0.28)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255,255,255,0.1)',
+              }}
+            >
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-base shrink-0"
+                style={{ background: 'rgba(45,106,79,0.7)', border: '1px solid rgba(82,183,136,0.3)' }}
+              >
+                {item.icon}
+              </div>
+              <div>
+                <p className="text-xs font-bold text-[#FAF8F2] uppercase tracking-wider">{item.title}</p>
+                <p className="text-[10px] text-[#FAF8F2]/75">{item.sub}</p>
+              </div>
+            </motion.div>
+          ))}
         </motion.div>
       </motion.div>
 
-      {/* Down Indicator */}
+      {/* Organic scroll indicator */}
       <motion.button
         id="hero-scroll-indicator"
         onClick={onBuyNow}
         animate={{ y: [0, 8, 0] }}
-        transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+        transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
         aria-label="Scroll down to explore products"
-        className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 text-[#FAF8F2]/80 hover:text-[#FAF8F2] p-2 focus:outline-none flex flex-col items-center gap-1 text-[10px] uppercase font-bold tracking-widest drop-shadow"
+        className="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 text-[#FAF8F2]/75 hover:text-[#FAF8F2] p-2 focus:outline-none flex flex-col items-center gap-1.5 text-[10px] uppercase font-bold tracking-widest transition-colors"
       >
-        <span>View Products</span>
-        <ArrowDown className="w-4 h-4" />
+        <span className="text-[#C8A882]">View Products</span>
+        <ArrowDown className="w-4 h-4 text-[#C8A882]" />
       </motion.button>
     </section>
   );
