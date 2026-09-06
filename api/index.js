@@ -68173,6 +68173,45 @@ router6.get("/:id/tracking", requireUser, async (req, res) => {
     res.status(500).json({ ok: false, error: err.message });
   }
 });
+router6.delete("/admin/clear-all", requireAdmin, async (req, res) => {
+  try {
+    const client = getSupabase();
+    if (!client) {
+      res.status(500).json({ ok: false, error: "Database client not configured" });
+      return;
+    }
+    await client.from("order_items").delete().gte("id", 0);
+    const { error } = await client.from("orders").delete().neq("id", "NO_MATCH");
+    if (error) {
+      res.status(500).json({ ok: false, error: error.message });
+      return;
+    }
+    await auditLog(req.user.email, "orders.clear_all", "orders", null, {});
+    res.json({ ok: true, message: "All test orders have been cleared successfully." });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+router6.delete("/admin/:id", requireAdmin, async (req, res) => {
+  try {
+    const client = getSupabase();
+    if (!client) {
+      res.status(500).json({ ok: false, error: "Database client not configured" });
+      return;
+    }
+    const { id } = req.params;
+    await client.from("order_items").delete().eq("order_id", id);
+    const { error } = await client.from("orders").delete().eq("id", id);
+    if (error) {
+      res.status(500).json({ ok: false, error: error.message });
+      return;
+    }
+    await auditLog(req.user.email, "order.delete", "order", id, {});
+    res.json({ ok: true, message: `Order #${id} deleted successfully.` });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
 var orders_default = router6;
 
 // server/routes/account.ts

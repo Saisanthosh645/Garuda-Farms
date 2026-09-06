@@ -400,6 +400,27 @@ export const api = {
     }
   },
 
+  async deleteAdminOrder(orderId: string): Promise<{ ok: boolean; error?: string }> {
+    const headers = await getAuthHeader();
+    try {
+      const res = await fetch(`/api/orders/admin/${orderId}`, { method: 'DELETE', headers });
+      return res.json();
+    } catch (err: any) {
+      return { ok: false, error: err.message };
+    }
+  },
+
+  async clearAllAdminOrders(): Promise<{ ok: boolean; message?: string; error?: string }> {
+    const headers = await getAuthHeader();
+    try {
+      const res = await fetch('/api/orders/admin/clear-all', { method: 'DELETE', headers });
+      return res.json();
+    } catch (err: any) {
+      return { ok: false, error: err.message };
+    }
+  },
+
+
   async updateProduct(id: number, payload: any): Promise<{ ok: boolean; product?: any; error?: string }> {
     const headers = await getAuthHeader();
     try {
