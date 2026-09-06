@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import Razorpay from 'razorpay';
 import { getSupabase } from '../db/supabase';
 import { calculateServerDeliveryFee } from '../utils/distance';
+import { syncOrderToGoogleSheets } from '../utils/googleSheets';
 
 const router = Router();
 
@@ -480,6 +481,9 @@ export async function handleVerifyPayment(req: Request, res: Response): Promise<
       });
     }
 
+    // Trigger secondary real-time Google Sheets backup sync (non-blocking)
+    syncOrderToGoogleSheets({ ...orderRecord, items: calc.validatedItems });
+
     res.status(200).json({
       ok: true,
       verified: true,
@@ -605,6 +609,9 @@ export async function handleCreateCodOrder(req: Request, res: Response): Promise
         total_price: item.total_price,
       });
     }
+
+    // Trigger secondary real-time Google Sheets backup sync (non-blocking)
+    syncOrderToGoogleSheets({ ...orderRecord, items: calc.validatedItems });
 
     res.status(200).json({
       ok: true,
