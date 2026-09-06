@@ -29,7 +29,7 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
 
       if (active_only !== 'false') {
         // Storefront: only show active AND in-stock products
-        query = query.eq('is_active', true).eq('is_in_stock', true);
+        query = query.eq('is_active', true);
       }
 
       if (search) {
@@ -66,7 +66,7 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
           defaultWeight: p.default_weight || 'Standard Pack',
           badge: p.badge,
           farmOrigin: p.farm_origin,
-          stock: p.is_in_stock,
+          stock: p.is_in_stock !== false,
           stockQuantity: p.stock_quantity,
           featured: p.is_featured,
           organicCert: p.organic_cert,
@@ -166,7 +166,7 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
             defaultWeight: data.default_weight,
             badge: data.badge,
             farmOrigin: data.farm_origin,
-            stock: Boolean(data.is_in_stock && data.is_active),
+            stock: data.is_in_stock !== false,
             stockQuantity: data.stock_quantity,
             featured: data.is_featured,
             organicCert: data.organic_cert,
