@@ -1,3 +1,4 @@
+// Garuda Farms Admin Panel v1.1.0 — Analytics & Control Center
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../../lib/api';
 import { supabase } from '../../lib/supabaseClient';
