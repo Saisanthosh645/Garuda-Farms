@@ -565,6 +565,7 @@ export default function App() {
             <div className="pt-24">
               <AccountPage
                 initialTab="overview"
+                allProducts={liveProducts}
                 onNavigateToProducts={() => navigateToView('products')}
                 onAddToCart={(p, w, q) => handleAddToCart(p, w, q)}
               />
@@ -575,6 +576,7 @@ export default function App() {
             <div className="pt-24">
               <AccountPage
                 initialTab="orders"
+                allProducts={liveProducts}
                 onNavigateToProducts={() => navigateToView('products')}
                 onAddToCart={(p, w, q) => handleAddToCart(p, w, q)}
               />

@@ -3,6 +3,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { api } from '../../lib/api';
 import { supabase } from '../../lib/supabaseClient';
 import { signOut } from '../../lib/frontendAuth';
+import { useAuth } from '../../auth/AuthProvider';
+import SproutLoader from '../../components/SproutLoader';
 import {
   LayoutDashboard, Package, Layers, ShoppingBag, Users, Tag, Home, Settings,
   LogOut, RefreshCw, Plus, Edit2, Trash2, Eye, Search, Filter, Check, X,
@@ -198,7 +200,11 @@ function DashboardSection({ toast }: { toast: ReturnType<typeof useToast> }) {
   ] : [];
 
   if (loading && !stats) {
-    return <div className="flex items-center justify-center h-64"><RefreshCw className="w-8 h-8 animate-spin text-[#2D6A4F]" /></div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <SproutLoader size="md" label="Growing live analytics..." />
+      </div>
+    );
   }
 
   const categoryBreakdown = analytics?.categoryBreakdown || [];
@@ -2531,27 +2537,58 @@ function DeliverySection({ toast }: { toast: ReturnType<typeof useToast> }) {
 
 // ─── MAIN Admin Panel ─────────────────────────────────────────────────────────
 export default function AdminPanel({ onBack }: { onBack?: () => void }) {
+  const { user: authUser } = useAuth();
   const [section, setSection] = useState<AdminSection>('dashboard');
-  const [adminUser, setAdminUser] = useState<any | null>(null);
+  const [adminUser, setAdminUser] = useState<any | null>(() => {
+    try {
+      const saved = sessionStorage.getItem('garuda_admin_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
-  const [verifying, setVerifying] = useState(true);
+  const [verifying, setVerifying] = useState(() => !adminUser && !authUser);
   const toast = useToast();
 
   useEffect(() => {
+    let mounted = true;
     (async () => {
-      setVerifying(true);
-      const { data } = await supabase.auth.getSession();
-      const token = data?.session?.access_token;
-      if (token) {
-        const res = await api.getAdminIdentity();
-        if (res.ok && res.admin) setAdminUser(res.admin);
+      // If auth user is available, populate admin identity immediately for zero latency
+      if (authUser && !adminUser) {
+        const initialAdmin = {
+          id: authUser.id,
+          email: authUser.email,
+          name: (authUser.user_metadata as any)?.fullName || authUser.email?.split('@')[0] || 'Admin',
+        };
+        setAdminUser(initialAdmin);
+        setVerifying(false);
+      } else if (!authUser && !adminUser) {
+        setVerifying(true);
       }
-      setVerifying(false);
+
+      // Silent background verification with server
+      try {
+        const { data } = await supabase.auth.getSession();
+        const token = data?.session?.access_token;
+        if (token) {
+          const res = await api.getAdminIdentity();
+          if (mounted && res.ok && res.admin) {
+            setAdminUser(res.admin);
+            try { sessionStorage.setItem('garuda_admin_user', JSON.stringify(res.admin)); } catch {}
+          }
+        }
+      } catch (err) {
+        console.warn('Background admin check error:', err);
+      } finally {
+        if (mounted) setVerifying(false);
+      }
     })();
-  }, []);
+    return () => { mounted = false; };
+  }, [authUser]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -2577,6 +2614,7 @@ export default function AdminPanel({ onBack }: { onBack?: () => void }) {
     setAdminUser(null);
     setEmail('');
     setPassword('');
+    try { sessionStorage.removeItem('garuda_admin_user'); } catch {}
   };
 
   const nav: Array<{ key: AdminSection; label: string; icon: React.ElementType }> = [
@@ -2602,8 +2640,8 @@ export default function AdminPanel({ onBack }: { onBack?: () => void }) {
 
   if (verifying) {
     return (
-      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
-        <RefreshCw className="w-10 h-10 animate-spin text-[#2D6A4F]" />
+      <div className="min-h-screen bg-[#0F2D1F] flex items-center justify-center p-4">
+        <SproutLoader size="lg" label="Nurturing admin control center..." className="text-[#FAF8F2]" />
       </div>
     );
   }

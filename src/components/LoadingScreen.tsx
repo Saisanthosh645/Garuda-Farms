@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { GarudaLogo } from './GarudaLogo';
+import { SproutLoader } from './SproutLoader';
 
 interface LoadingScreenProps {
   onLoaded?: () => void;
@@ -65,14 +66,9 @@ export const LoadingScreen: React.FC<LoadingScreenProps> = ({ onLoaded, onLoadin
               <GarudaLogo variant="full" theme="dark" size="lg" showPillars={true} />
             </motion.div>
 
-            {/* Progress line */}
-            <div className="w-36 h-[2px] bg-[#1B4332] mt-6 overflow-hidden rounded-full">
-              <motion.div
-                initial={{ x: '-100%' }}
-                animate={{ x: '100%' }}
-                transition={{ duration: 1.2, ease: 'easeInOut', repeat: Infinity }}
-                className="w-full h-full bg-gradient-to-r from-transparent via-[#D4A373] to-transparent"
-              />
+            {/* Organic Farm Sprout Growth Animation */}
+            <div className="mt-4">
+              <SproutLoader size="lg" label="Nurturing farm fresh experience..." />
             </div>
           </div>
         </motion.div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../auth/AuthProvider';
 import { api } from '../../lib/api';
 import { Product } from '../../types';
+import SproutLoader from '../../components/SproutLoader';
 import {
   User,
   ShoppingBag,
@@ -43,6 +44,7 @@ interface AccountPageProps {
   initialTab?: string;
   onNavigateToProducts?: () => void;
   onAddToCart?: (product: Product, weight?: string, quantity?: number) => void;
+  allProducts?: Product[];
 }
 
 const AUTHORIZED_ADMIN_EMAILS = [
@@ -50,16 +52,22 @@ const AUTHORIZED_ADMIN_EMAILS = [
   'raminisaisanthosh@gmail.com',
 ];
 
+const SectionSkeleton: React.FC<{ label?: string }> = ({ label = 'Nurturing harvest data...' }) => (
+  <div className="bg-white rounded-2xl border border-[#DCD2C3] p-10 flex flex-col items-center justify-center text-center shadow-sm">
+    <SproutLoader size="md" label={label} />
+  </div>
+);
+
 export const AccountPage: React.FC<AccountPageProps> = ({
   initialTab = 'overview',
   onNavigateToProducts,
   onAddToCart,
+  allProducts: passedProducts = [],
 }) => {
   const { user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState(initialTab);
 
   // States for DB data
-  const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<any>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [addresses, setAddresses] = useState<any[]>([]);
@@ -67,8 +75,17 @@ export const AccountPage: React.FC<AccountPageProps> = ({
   const [wishlistProducts, setWishlistProducts] = useState<Product[]>([]);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [supportTickets, setSupportTickets] = useState<any[]>([]);
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [allProducts, setAllProducts] = useState<Product[]>(passedProducts);
   const [coupons, setCoupons] = useState<any[]>([]);
+
+  // Section loading states for lazy fetching
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [loadingAddresses, setLoadingAddresses] = useState(false);
+  const [loadingWishlist, setLoadingWishlist] = useState(false);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
+  const [loadingTickets, setLoadingTickets] = useState(false);
+  const [loadingCoupons, setLoadingCoupons] = useState(false);
+  const [loadedSections, setLoadedSections] = useState<Record<string, boolean>>({});
 
   // Modals & UI controls
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
@@ -126,31 +143,18 @@ export const AccountPage: React.FC<AccountPageProps> = ({
     setTimeout(() => setToastMessage(null), 4000);
   };
 
-  // Load all user account data from real backend/database
-  const loadAccountData = async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      const [
-        profRes,
-        ordersRes,
-        addrRes,
-        wishRes,
-        notifRes,
-        tktRes,
-        prodsRes,
-        couponsRes,
-      ] = await Promise.all([
-        api.getProfile(),
-        api.getOrders(),
-        api.getAddresses(),
-        api.getWishlist(),
-        api.getNotifications(),
-        api.getSupportTickets(),
-        api.getProducts(),
-        api.getActiveCoupons(),
-      ]);
+  // Keep passedProducts synced with allProducts
+  useEffect(() => {
+    if (passedProducts && passedProducts.length > 0) {
+      setAllProducts(passedProducts);
+    }
+  }, [passedProducts]);
 
+  // Load user profile (non-blocking)
+  const loadProfile = async () => {
+    if (!user) return;
+    try {
+      const profRes = await api.getProfile();
       if (profRes.ok && profRes.profile) {
         setProfile(profRes.profile);
         setProfileForm({
@@ -167,44 +171,94 @@ export const AccountPage: React.FC<AccountPageProps> = ({
           gender: 'Prefer not to say',
         });
       }
-
-      if (ordersRes.ok && Array.isArray(ordersRes.orders)) {
-        setOrders(ordersRes.orders);
-      }
-
-      if (addrRes.ok && Array.isArray(addrRes.addresses)) {
-        setAddresses(addrRes.addresses);
-      }
-
-      if (wishRes.ok && Array.isArray(wishRes.productIds)) {
-        setWishlistIds(wishRes.productIds);
-      }
-
-      if (notifRes.ok && Array.isArray(notifRes.notifications)) {
-        setNotifications(notifRes.notifications);
-      }
-
-      if (tktRes.ok && Array.isArray(tktRes.tickets)) {
-        setSupportTickets(tktRes.tickets);
-      }
-
-      if (Array.isArray(prodsRes)) {
-        setAllProducts(prodsRes);
-      }
-
-      if (couponsRes.ok && Array.isArray(couponsRes.coupons)) {
-        setCoupons(couponsRes.coupons);
-      }
     } catch (err) {
-      console.error('Account data fetch error:', err);
-    } finally {
-      setLoading(false);
+      console.error('Profile fetch error:', err);
     }
   };
 
+  // Lazy-load section data on demand when tab opens
+  const fetchSectionData = async (tab: string, force = false) => {
+    if (!user) return;
+    if (tab === 'overview' || tab === 'orders') {
+      if (!loadedSections['orders'] || force) {
+        setLoadingOrders(true);
+        try {
+          const res = await api.getOrders();
+          if (res.ok && Array.isArray(res.orders)) setOrders(res.orders);
+        } catch (e) {}
+        setLoadingOrders(false);
+        setLoadedSections((prev) => ({ ...prev, orders: true }));
+      }
+    }
+    if (tab === 'overview' || tab === 'addresses') {
+      if (!loadedSections['addresses'] || force) {
+        setLoadingAddresses(true);
+        try {
+          const res = await api.getAddresses();
+          if (res.ok && Array.isArray(res.addresses)) setAddresses(res.addresses);
+        } catch (e) {}
+        setLoadingAddresses(false);
+        setLoadedSections((prev) => ({ ...prev, addresses: true }));
+      }
+    }
+    if (tab === 'wishlist') {
+      if (!loadedSections['wishlist'] || force) {
+        setLoadingWishlist(true);
+        try {
+          const res = await api.getWishlist();
+          if (res.ok && Array.isArray(res.productIds)) setWishlistIds(res.productIds);
+        } catch (e) {}
+        setLoadingWishlist(false);
+        setLoadedSections((prev) => ({ ...prev, wishlist: true }));
+      }
+    }
+    if (tab === 'notifications' || tab === 'overview') {
+      if (!loadedSections['notifications'] || force) {
+        setLoadingNotifications(true);
+        try {
+          const res = await api.getNotifications();
+          if (res.ok && Array.isArray(res.notifications)) setNotifications(res.notifications);
+        } catch (e) {}
+        setLoadingNotifications(false);
+        setLoadedSections((prev) => ({ ...prev, notifications: true }));
+      }
+    }
+    if (tab === 'help') {
+      if (!loadedSections['tickets'] || force) {
+        setLoadingTickets(true);
+        try {
+          const res = await api.getSupportTickets();
+          if (res.ok && Array.isArray(res.tickets)) setSupportTickets(res.tickets);
+        } catch (e) {}
+        setLoadingTickets(false);
+        setLoadedSections((prev) => ({ ...prev, tickets: true }));
+      }
+    }
+    if (tab === 'coupons') {
+      if (!loadedSections['coupons'] || force) {
+        setLoadingCoupons(true);
+        try {
+          const res = await api.getActiveCoupons();
+          if (res.ok && Array.isArray(res.coupons)) setCoupons(res.coupons);
+        } catch (e) {}
+        setLoadingCoupons(false);
+        setLoadedSections((prev) => ({ ...prev, coupons: true }));
+      }
+    }
+  };
+
+  const loadAccountData = () => {
+    loadProfile();
+    fetchSectionData(activeTab, true);
+  };
+
   useEffect(() => {
-    loadAccountData();
+    loadProfile();
   }, [user]);
+
+  useEffect(() => {
+    fetchSectionData(activeTab);
+  }, [user, activeTab]);
 
   // Sync Wishlist products when wishlistIds or allProducts update
   useEffect(() => {
@@ -536,16 +590,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({
             </div>
           )}
 
-          {/* Loading State */}
-          {loading && (
-            <div className="bg-white rounded-2xl border border-[#DCD2C3] p-12 text-center shadow-sm">
-              <div className="w-10 h-10 border-4 border-[#2D6A4F] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-              <p className="text-xs text-[#556960]">Loading your account data from Garuda database...</p>
-            </div>
-          )}
 
-          {!loading && (
-            <>
               {/* TAB 1: OVERVIEW DASHBOARD */}
               {activeTab === 'overview' && (
                 <div className="space-y-6">
@@ -1496,8 +1541,6 @@ export const AccountPage: React.FC<AccountPageProps> = ({
                   </div>
                 </div>
               )}
-            </>
-          )}
         </div>
       </div>
 
