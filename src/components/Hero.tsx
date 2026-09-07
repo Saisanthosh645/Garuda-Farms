@@ -24,13 +24,13 @@ interface HeroProps {
 import { ClayPot3DCanvas } from './ClayPot3DCanvas';
 import { MugguDivider, MugguFlower, ClayArtMotif } from './MugguCurves';
 
-// Lush Green Organic Farm Trees Moving in Breeze Video Loop
+// Uploaded Farm Video Loop
 const HERO_ORGANIC_VIDEO = {
-  id: 'organic-farm-trees-breeze',
-  title: 'Lush Green Organic Farm Trees Moving in Sunlight (1080p HD)',
-  cdnUrl: 'https://assets.mixkit.co/videos/preview/mixkit-sun-shining-through-green-leaves-42907-large.mp4',
-  secondaryUrl: 'https://cdn.pixabay.com/video/2021/08/11/84687-586716075_large.mp4',
-  tertiaryUrl: 'https://cdn.pixabay.com/video/2020/05/25/40149-424077874_large.mp4',
+  id: 'uploaded-farm-hero-video',
+  title: 'Garuda Farms - Organic Farm Experience (1080p HD)',
+  cdnUrl: '/videos/uploaded-hero-video.mp4',
+  secondaryUrl: '/videos/hero-rooster.mp4',
+  tertiaryUrl: 'https://assets.mixkit.co/videos/preview/mixkit-sun-shining-through-green-leaves-42907-large.mp4',
   poster: '/assets/organic-farm-hero.png',
   fallbackPoster: 'https://images.unsplash.com/photo-1500937386664-56d1dfef3854?auto=format&fit=crop&w=1920&q=80',
 };
