@@ -19,6 +19,7 @@ import confetti from 'canvas-confetti';
 import { CartItem, OrderDetails } from '../types';
 import { api } from '../lib/api';
 import { calculateDeliveryFeeByPincode, PINCODE_DISTANCE_MAP } from '../lib/distance';
+import { InvoiceModal } from './InvoiceModal';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -107,6 +108,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const [deliverySlot, setDeliverySlot] = useState('Tomorrow Morning (6:00 AM – 8:00 AM)');
   const [paymentMethod, setPaymentMethod] = useState<'Online' | 'COD'>('Online');
   const [confirmedOrder, setConfirmedOrder] = useState<OrderDetails | null>(null);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
   // Address book integration
   const [savedAddresses, setSavedAddresses] = useState<any[]>([]);
@@ -243,6 +245,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       return;
     }
 
+    const cleanPhoneDigits = phone.trim().replace(/\D/g, '');
+    if (!/^[6-9]\d{9}$/.test(cleanPhoneDigits)) {
+      setErrorMessage('Please enter a valid 10-digit mobile phone number (e.g. 9866929427) for delivery updates.');
+      return;
+    }
+
     if (deliveryError) {
       setErrorMessage(deliveryError);
       return;
@@ -292,6 +300,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           saveOrderToStorage(created);
           setConfirmedOrder(created);
           setStep('success');
+          window.dispatchEvent(new Event('garuda_products_updated'));
+          try { localStorage.setItem('garuda_products_sync', Date.now().toString()); } catch {}
           onOrderSuccess();
         } else {
           setErrorMessage(res?.error || 'Could not create COD order. Please try again later.');
@@ -509,6 +519,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               saveOrderToStorage(newOrder);
               setConfirmedOrder(newOrder);
               setStep('success');
+              window.dispatchEvent(new Event('garuda_products_updated'));
+              try { localStorage.setItem('garuda_products_sync', Date.now().toString()); } catch {}
               onOrderSuccess();
             } else {
               console.error('[Razorpay] Verification failed:', verifyRes);
@@ -655,13 +667,15 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     </div>
                     <div>
                       <label className="text-[11px] font-bold uppercase text-[#8C6239] block mb-1">
-                        Phone Number
+                        Mobile Phone (Required for WhatsApp Updates)
                       </label>
                       <input
                         required
-                        type="text"
+                        type="tel"
+                        maxLength={10}
+                        placeholder="10-digit mobile no."
                         value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
+                        onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
                         className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-[#DCD2C3] text-sm text-[#0F2D1F] focus:outline-none focus:border-[#2D6A4F]"
                       />
                     </div>
@@ -846,9 +860,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                     <div className="mt-3 p-3 rounded-xl bg-white border border-[#E5DEC9] text-xs text-[#556960] flex items-center gap-2">
                       <Lock className="w-4 h-4 text-[#2D6A4F] shrink-0" />
                       {paymentMethod === 'Online' ? (
-                        <span>
-                          <strong>Zero Convenience Fee:</strong> Secure checkout supporting Google Pay, PhonePe, Paytm, Visa, Mastercard, RuPay & NetBanking.
-                        </span>
+                        <div>
+                          <span>
+                            <strong>Zero Convenience Fee:</strong> Secure checkout supporting Google Pay, PhonePe, Paytm, Visa, Mastercard, RuPay & NetBanking.
+                          </span>
+                          <span className="block mt-1 text-[11px] text-amber-800 font-bold">
+                            ⚠️ Please do not close or refresh the page while payment is processing.
+                          </span>
+                        </div>
                       ) : (
                         <span>
                           <strong>Doorstep Payment:</strong> Pay with cash or scan QR with our delivery partner upon receiving your chilled sealed lot.
@@ -945,9 +964,16 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                       )}
                     </button>
 
+                    {paymentMethod === 'Online' && (
+                      <p className="text-[11px] text-center font-extrabold text-amber-800 bg-amber-50/90 border border-amber-300/80 py-2 px-3 rounded-xl flex items-center justify-center gap-1.5 shadow-xs">
+                        <span>🔒</span>
+                        <span>Please do not close or refresh the page while payment is processing.</span>
+                      </p>
+                    )}
+
                     <p className="text-[10px] text-center text-[#8C6239] flex items-center justify-center gap-1">
                       <ShieldCheck className="w-3.5 h-3.5 text-[#2D6A4F]" />
-                      <span>FSSAI Lic. #13621014000382 • 100% Purity & Freshness Guarantee</span>
+                      <span>FSSAI Certified • 100% Purity & Freshness Guarantee</span>
                     </p>
                   </div>
                 </div>
@@ -1029,11 +1055,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <div className="flex flex-wrap items-center justify-center gap-3 pt-4">
                 <button
                   type="button"
-                  onClick={handlePrint}
+                  onClick={() => setShowInvoiceModal(true)}
                   className="px-5 py-3 rounded-full bg-white border border-[#DCD2C3] hover:bg-[#FAF8F2] text-[#0F2D1F] text-xs font-bold uppercase tracking-wider transition-all shadow-sm flex items-center gap-2 cursor-pointer"
                 >
                   <Printer className="w-4 h-4 text-[#2D6A4F]" />
-                  <span>Print Tax Invoice</span>
+                  <span>Print Official Invoice</span>
                 </button>
 
                 {onTrackOrder && confirmedOrder && (
@@ -1072,6 +1098,37 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           )}
         </motion.div>
       </div>
+
+      {/* Official Tax Invoice Modal */}
+      <InvoiceModal
+        isOpen={showInvoiceModal}
+        onClose={() => setShowInvoiceModal(false)}
+        order={confirmedOrder ? {
+          id: confirmedOrder.orderId,
+          timestamp: confirmedOrder.timestamp,
+          customerName: confirmedOrder.customerName,
+          email: confirmedOrder.email,
+          phone: confirmedOrder.phone,
+          address: confirmedOrder.address,
+          city: confirmedOrder.city,
+          pincode: confirmedOrder.pincode,
+          deliverySlot: deliverySlot,
+          paymentMethod: confirmedOrder.paymentMethod,
+          paymentStatus: confirmedOrder.paymentStatus,
+          razorpayPaymentId: confirmedOrder.razorpayPaymentId,
+          items: confirmedOrder.items.map(it => ({
+            product_name: it.product.name,
+            selected_weight: it.selectedWeight,
+            unit_price: it.product.price,
+            quantity: it.quantity,
+            total_price: it.product.price * it.quantity,
+          })),
+          subtotal: confirmedOrder.subtotal,
+          deliveryFee: confirmedOrder.deliveryFee,
+          discount: confirmedOrder.discount,
+          total: confirmedOrder.total,
+        } : null}
+      />
     </AnimatePresence>
   );
 };

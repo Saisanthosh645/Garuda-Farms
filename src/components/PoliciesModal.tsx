@@ -186,7 +186,7 @@ export const PoliciesModal: React.FC<PoliciesModalProps> = ({
                     <span className="px-2.5 py-1 rounded bg-[#2D6A4F]/10 text-[#2D6A4F] text-[11px] font-mono font-bold">
                       FSSAI Central License
                     </span>
-                    <h5 className="font-bold text-sm text-[#0F2D1F]">FSSAI Lic. #13621014000382</h5>
+                    <h5 className="font-bold text-sm text-[#0F2D1F]">FSSAI Certified</h5>
                     <p className="text-xs text-[#556960]">
                       Licensed for organic processing, A2 dairy bottling, cold oil pressing, and hygienic packaging.
                     </p>

@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { User, Mail, Phone, Lock, Eye, EyeOff, ArrowRight, Sparkles, Shield, CheckCircle2, AlertCircle, RefreshCw, Check } from 'lucide-react';
+import { User, Mail, Phone, Lock, Eye, EyeOff, ArrowRight, Shield, CheckCircle2, AlertCircle, RefreshCw, Smartphone } from 'lucide-react';
 import { useAuth } from '../../auth/AuthProvider';
 import { GarudaLogo } from '../../components/GarudaLogo';
 import supabase from '../../lib/supabaseClient';
+import { api } from '../../lib/api';
 
 interface SignupPageProps {
   onSwitchToLogin?: () => void;
@@ -28,6 +29,13 @@ export const SignupPage: React.FC<SignupPageProps> = ({
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
 
+  // OTP Verification States
+  const [showOtpScreen, setShowOtpScreen] = useState(false);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [whatsappLink, setWhatsappLink] = useState<string | undefined>();
+  const [resendMessage, setResendMessage] = useState<string | null>(null);
+
   // Auto-redirect if already logged in
   React.useEffect(() => {
     if (auth.user && onSuccess) {
@@ -35,7 +43,6 @@ export const SignupPage: React.FC<SignupPageProps> = ({
     }
   }, [auth.user, onSuccess]);
 
-  // Live Password Strength Calculation (Min 8 chars, Upper, Lower, Number, Special)
   const getPasswordStrength = () => {
     if (!password) return { score: 0, label: '', color: 'bg-stone-200' };
     let score = 0;
@@ -53,14 +60,15 @@ export const SignupPage: React.FC<SignupPageProps> = ({
 
   const strength = getPasswordStrength();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Step 1: Validate details and send Mobile OTP
+  const handleSubmitDetails = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setResendMessage(null);
 
-    // 1. Required fields check
     const trimmedName = fullName.trim();
     const trimmedEmail = email.trim();
-    const cleanPhone = phone.trim().replace(/\D/g, ''); // digits only
+    const cleanPhone = phone.trim().replace(/\D/g, '');
     const trimmedPassword = password;
     const trimmedConfirm = confirm;
 
@@ -69,40 +77,29 @@ export const SignupPage: React.FC<SignupPageProps> = ({
       return;
     }
 
-    // 2. Name validation: Letters and spaces only
     if (!/^[A-Za-z\s]+$/.test(trimmedName)) {
-      setError('Full Name must contain letters and spaces only (no numbers or special characters).');
+      setError('Full Name must contain letters and spaces only.');
       return;
     }
 
-    // 3. Email validation format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(trimmedEmail)) {
       setError('Please enter a valid email address (e.g. patron@garudafarms.com).');
       return;
     }
 
-    // 4. Phone validation: Accept numbers only, exactly 10 digits for Indian mobile numbers
     if (!/^[6-9]\d{9}$/.test(cleanPhone)) {
-      setError('Please enter a valid 10-digit mobile number (numbers only, e.g. 9866929427).');
+      setError('Please enter a valid 10-digit Indian mobile number (e.g. 9866929427).');
       return;
     }
 
-    // 5. Password validation: Min 8 characters, uppercase, lowercase, number, special char
     if (trimmedPassword.length < 8) {
       setError('Password must be at least 8 characters long.');
       return;
     }
 
-    const hasUpper = /[A-Z]/.test(trimmedPassword);
-    const hasLower = /[a-z]/.test(trimmedPassword);
-    const hasNumber = /[0-9]/.test(trimmedPassword);
-    const hasSpecial = /[^A-Za-z0-9]/.test(trimmedPassword);
-
-    if (!hasUpper || !hasLower || !hasNumber || !hasSpecial) {
-      setError(
-        'Password must contain at least one uppercase letter (A-Z), one lowercase letter (a-z), one number (0-9), and one special character (e.g. @, #, $, !).'
-      );
+    if (!/[A-Z]/.test(trimmedPassword) || !/[a-z]/.test(trimmedPassword) || !/[0-9]/.test(trimmedPassword) || !/[^A-Za-z0-9]/.test(trimmedPassword)) {
+      setError('Password must contain upper, lower, number, and special character.');
       return;
     }
 
@@ -119,52 +116,98 @@ export const SignupPage: React.FC<SignupPageProps> = ({
     setLoading(true);
 
     try {
+      const otpRes = await api.sendPhoneOtp(cleanPhone);
+      if (!otpRes.ok) {
+        setError(otpRes.error || 'Failed to dispatch verification OTP. Please try again.');
+        return;
+      }
+
+      setWhatsappLink(otpRes.whatsappLink);
+      setShowOtpScreen(true);
+    } catch (err: any) {
+      setError(err?.message || 'OTP dispatch failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Resend OTP
+  const handleResendOtp = async () => {
+    setError(null);
+    setResendMessage(null);
+    const cleanPhone = phone.trim().replace(/\D/g, '');
+    try {
+      const otpRes = await api.sendPhoneOtp(cleanPhone);
+      if (otpRes.ok) {
+        setWhatsappLink(otpRes.whatsappLink);
+        setResendMessage(`New OTP sent to +91 ${cleanPhone}`);
+      } else {
+        setError(otpRes.error || 'Failed to resend OTP.');
+      }
+    } catch (e: any) {
+      setError(e.message || 'Failed to resend OTP.');
+    }
+  };
+
+  // Step 2: Verify OTP and Register Account
+  const handleVerifyOtpAndRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setResendMessage(null);
+
+    const cleanOtp = otpCode.trim();
+    if (!cleanOtp || cleanOtp.length < 6) {
+      setError('Please enter the 6-digit OTP sent to your mobile phone.');
+      return;
+    }
+
+    setOtpLoading(true);
+
+    try {
+      const cleanPhone = phone.trim().replace(/\D/g, '');
+      const verifyRes = await api.verifyPhoneOtp(cleanPhone, cleanOtp);
+
+      if (!verifyRes.ok) {
+        setError(verifyRes.error || 'Invalid OTP code. Please try again.');
+        return;
+      }
+
+      // OTP Verified! Complete Registration via Auth Provider
       const res = await signUp({
-        email: trimmedEmail,
-        password: trimmedPassword,
-        fullName: trimmedName,
+        email: email.trim(),
+        password,
+        fullName: fullName.trim(),
         phone: cleanPhone,
       });
 
       const userData = (res as any)?.data?.user;
       const errorObj = (res as any)?.error;
 
-      // Supabase returns identities: [] when email already exists in Auth!
       const isExistingAccount =
         (userData && Array.isArray(userData.identities) && userData.identities.length === 0) ||
         (errorObj && (
           errorObj.message?.toLowerCase().includes('already registered') ||
           errorObj.message?.toLowerCase().includes('already in use') ||
           errorObj.message?.toLowerCase().includes('already exists') ||
-          errorObj.message?.toLowerCase().includes('duplicate') ||
           errorObj.code === 'user_already_exists'
         ));
 
       if (isExistingAccount) {
-        setError('Account already exists. Please Login.');
+        setError('Account already exists with this email/phone. Please Sign In.');
+        setShowOtpScreen(false);
         return;
       }
 
       if (errorObj) {
-        setError('Account creation failed. Please check your details and try again.');
+        setError(errorObj.message || 'Account creation failed.');
         return;
       }
 
-      // Successful signup
       if (onSuccess) onSuccess();
     } catch (err: any) {
-      const rawErr: string = err?.message || '';
-      if (
-        rawErr.toLowerCase().includes('already registered') ||
-        rawErr.toLowerCase().includes('already in use') ||
-        rawErr.toLowerCase().includes('exists')
-      ) {
-        setError('Account already exists. Please Login.');
-      } else {
-        setError('Account creation failed. Please check your details and try again.');
-      }
+      setError(err?.message || 'Account verification failed.');
     } finally {
-      setLoading(false);
+      setOtpLoading(false);
     }
   };
 
@@ -193,7 +236,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({
         animate={{ opacity: 1, y: 0 }}
         className="bg-[#FAF8F2] rounded-3xl p-6 sm:p-8 shadow-[0_20px_50px_rgba(15,45,31,0.15)] border border-[#DCD2C3] relative overflow-hidden"
       >
-        {/* Decorative Top Glow */}
+        {/* Decorative Glow */}
         <div className="absolute -top-12 -right-12 w-36 h-36 bg-[#52B788]/15 rounded-full blur-2xl pointer-events-none" />
         <div className="absolute -bottom-12 -left-12 w-36 h-36 bg-[#C49A45]/15 rounded-full blur-2xl pointer-events-none" />
 
@@ -203,209 +246,276 @@ export const SignupPage: React.FC<SignupPageProps> = ({
             <GarudaLogo variant="horizontal" theme="light" size="md" />
           </div>
           <h2 className="font-heading text-2xl sm:text-3xl font-extrabold text-[#0F2D1F] tracking-tight">
-            Join The Sanctum
+            {showOtpScreen ? 'Verify Mobile OTP' : 'Join The Sanctum'}
           </h2>
           <p className="text-xs text-[#556960]">
-            Get 10% instant discount & farm-gate morning express delivery
+            {showOtpScreen
+              ? `We sent a 6-digit code to +91 ${phone.replace(/\D/g, '')}`
+              : 'Get 10% instant discount & farm-gate morning express delivery'}
           </p>
         </div>
 
-        {/* Google OAuth Button */}
-        <button
-          type="button"
-          onClick={handleGoogleSignIn}
-          disabled={googleLoading || loading}
-          className="w-full py-3 px-4 rounded-2xl bg-white border border-[#DCD2C3] hover:border-[#2D6A4F] text-[#0F2D1F] text-xs font-extrabold tracking-wide flex items-center justify-center gap-3 shadow-sm hover:shadow-md transition-all cursor-pointer disabled:opacity-60 group"
-        >
-          {googleLoading ? (
-            <RefreshCw className="w-4 h-4 animate-spin text-[#2D6A4F]" />
-          ) : (
-            <>
-              <svg className="w-4 h-4 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
-                <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
-                <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
-              </svg>
-              <span>Continue with Google</span>
-            </>
-          )}
-        </button>
-
-        {/* Divider */}
-        <div className="flex items-center my-4 text-[11px] text-[#8C6239] font-bold uppercase tracking-wider">
-          <div className="flex-1 border-t border-[#DCD2C3]" />
-          <span className="px-3 bg-[#FAF8F2]">Or Fill Details</span>
-          <div className="flex-1 border-t border-[#DCD2C3]" />
-        </div>
-
-        {/* Error Alert */}
+        {/* Error Banner */}
         {error && (
-          <motion.div
-            initial={{ opacity: 0, y: -8 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-4 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 text-xs font-medium flex items-start gap-2.5 shadow-sm"
-          >
-            <AlertCircle className="w-4.5 h-4.5 text-rose-600 shrink-0 mt-0.5" />
-            <div className="flex-1 space-y-1">
-              <p className="font-extrabold text-[#0F2D1F]">{error}</p>
-              {error.includes('Account already exists') && onSwitchToLogin && (
-                <button
-                  type="button"
-                  onClick={onSwitchToLogin}
-                  className="mt-1 px-3.5 py-1.5 rounded-xl bg-[#2D6A4F] hover:bg-[#1B4332] text-white text-[11px] font-black uppercase tracking-wider transition-all cursor-pointer inline-flex items-center gap-1 shadow-sm"
-                >
-                  <span>Please Login →</span>
-                </button>
-              )}
-            </div>
-          </motion.div>
+          <div className="mb-4 p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-start gap-2.5">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <span>{error}</span>
+          </div>
         )}
 
-        {/* Signup Form */}
-        <form onSubmit={handleSubmit} className="space-y-3.5">
-          {/* Full Name */}
-          <div>
-            <label className="block text-[11px] font-black text-[#0F2D1F] uppercase tracking-wider mb-1">
-              Full Name
-            </label>
-            <div className="relative">
-              <User className="w-4 h-4 text-[#8C6239] absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                required
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                placeholder="Ramesh Kumar"
-                className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white border border-[#DCD2C3] text-xs font-bold text-[#0F2D1F] placeholder-[#8C6239]/50 focus:outline-none focus:border-[#2D6A4F] transition-all"
-              />
-            </div>
+        {/* Resend Notice */}
+        {resendMessage && (
+          <div className="mb-4 p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{resendMessage}</span>
           </div>
+        )}
 
-          {/* Email & Phone */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {showOtpScreen ? (
+          /* STEP 2: OTP Verification Screen */
+          <form onSubmit={handleVerifyOtpAndRegister} className="space-y-4">
             <div>
-              <label className="block text-[11px] font-black text-[#0F2D1F] uppercase tracking-wider mb-1">
-                Email
+              <label className="text-[11px] font-extrabold uppercase text-[#8C6239] tracking-wider block mb-1">
+                Enter 6-Digit OTP Code
               </label>
               <div className="relative">
-                <Mail className="w-4 h-4 text-[#8C6239] absolute left-3 top-1/2 -translate-y-1/2" />
+                <Smartphone className="w-5 h-5 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2D6A4F]" />
                 <input
-                  type="email"
+                  type="text"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@email.com"
-                  className="w-full pl-9 pr-3 py-2.5 rounded-2xl bg-white border border-[#DCD2C3] text-xs font-bold text-[#0F2D1F] placeholder-[#8C6239]/50 focus:outline-none focus:border-[#2D6A4F] transition-all"
+                  maxLength={6}
+                  placeholder="e.g. 123456"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                  className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white border border-[#DCD2C3] text-center text-lg font-mono tracking-[0.3em] text-[#0F2D1F] font-bold focus:outline-none focus:border-[#2D6A4F] focus:ring-2 focus:ring-[#2D6A4F]/20"
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-[11px] font-black text-[#0F2D1F] uppercase tracking-wider mb-1">
-                Mobile (+91)
-              </label>
-              <div className="relative">
-                <Phone className="w-4 h-4 text-[#8C6239] absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="98490 12847"
-                  className="w-full pl-9 pr-3 py-2.5 rounded-2xl bg-white border border-[#DCD2C3] text-xs font-bold text-[#0F2D1F] placeholder-[#8C6239]/50 focus:outline-none focus:border-[#2D6A4F] transition-all"
-                />
+            <button
+              type="submit"
+              disabled={otpLoading}
+              className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#2D6A4F] via-[#387656] to-[#52B788] hover:from-[#1B4332] hover:to-[#2D6A4F] text-[#FAF8F2] text-xs font-black tracking-widest uppercase shadow-lg shadow-[#2D6A4F]/25 hover:shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+            >
+              {otpLoading ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Verifying Mobile...</span>
+                </>
+              ) : (
+                <>
+                  <span>Verify & Create Account</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+
+            {/* Direct WhatsApp link & Resend Actions */}
+            <div className="pt-2 space-y-2 text-center text-xs">
+              {whatsappLink && (
+                <a
+                  href={whatsappLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2 px-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 hover:bg-emerald-100 font-bold flex items-center justify-center gap-2 transition-all block"
+                >
+                  💬 Receive / View OTP via WhatsApp
+                </a>
+              )}
+
+              <div className="flex items-center justify-between pt-2 text-[#556960]">
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  className="font-bold text-[#2D6A4F] hover:underline cursor-pointer"
+                >
+                  Resend OTP Code
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowOtpScreen(false)}
+                  className="font-semibold text-stone-500 hover:underline cursor-pointer"
+                >
+                  Change Details
+                </button>
               </div>
             </div>
-          </div>
+          </form>
+        ) : (
+          /* STEP 1: Details Entry Form */
+          <>
+            <button
+              type="button"
+              onClick={handleGoogleSignIn}
+              disabled={googleLoading || loading}
+              className="w-full py-3 px-4 rounded-2xl bg-white border border-[#DCD2C3] hover:border-[#2D6A4F] text-[#0F2D1F] text-xs font-extrabold tracking-wide flex items-center justify-center gap-3 shadow-sm hover:shadow-md transition-all cursor-pointer disabled:opacity-60 group"
+            >
+              {googleLoading ? (
+                <RefreshCw className="w-4 h-4 animate-spin text-[#2D6A4F]" />
+              ) : (
+                <>
+                  <svg className="w-4 h-4 group-hover:scale-110 transition-transform" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
+                  </svg>
+                  <span>Continue with Google</span>
+                </>
+              )}
+            </button>
 
-          {/* Password */}
-          <div>
-            <label className="block text-[11px] font-black text-[#0F2D1F] uppercase tracking-wider mb-1">
-              Password
-            </label>
-            <div className="relative">
-              <Lock className="w-4 h-4 text-[#8C6239] absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Minimum 6 characters"
-                className="w-full pl-10 pr-10 py-2.5 rounded-2xl bg-white border border-[#DCD2C3] text-xs font-bold text-[#0F2D1F] placeholder-[#8C6239]/50 focus:outline-none focus:border-[#2D6A4F] transition-all"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-700 transition-colors p-1"
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
+            <div className="flex items-center my-4 text-[11px] text-[#8C6239] font-bold uppercase tracking-wider">
+              <div className="flex-1 border-t border-[#DCD2C3]" />
+              <span className="px-3 bg-[#FAF8F2]">Or Manual Signup</span>
+              <div className="flex-1 border-t border-[#DCD2C3]" />
             </div>
-            {/* Strength Meter Bar */}
-            {password && (
-              <div className="mt-1.5 flex items-center gap-2">
-                <div className="flex-1 h-1.5 bg-stone-200 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full transition-all duration-300 ${strength.color}`}
-                    style={{ width: `${strength.score}%` }}
+
+            <form onSubmit={handleSubmitDetails} className="space-y-3.5">
+              <div>
+                <label className="text-[11px] font-extrabold uppercase text-[#8C6239] tracking-wider block mb-1">
+                  Full Name
+                </label>
+                <div className="relative">
+                  <User className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2D6A4F]" />
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Anand Sharma"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white border border-[#DCD2C3] text-xs font-semibold text-[#0F2D1F] focus:outline-none focus:border-[#2D6A4F]"
                   />
                 </div>
-                <span className="text-[10px] font-bold text-[#556960]">{strength.label}</span>
               </div>
-            )}
-          </div>
 
-          {/* Confirm Password */}
-          <div>
-            <label className="block text-[11px] font-black text-[#0F2D1F] uppercase tracking-wider mb-1">
-              Confirm Password
-            </label>
-            <div className="relative">
-              <Lock className="w-4 h-4 text-[#8C6239] absolute left-3.5 top-1/2 -translate-y-1/2" />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                placeholder="Re-enter password"
-                className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white border border-[#DCD2C3] text-xs font-bold text-[#0F2D1F] placeholder-[#8C6239]/50 focus:outline-none focus:border-[#2D6A4F] transition-all"
-              />
-            </div>
-          </div>
+              <div>
+                <label className="text-[11px] font-extrabold uppercase text-[#8C6239] tracking-wider block mb-1">
+                  Email Address
+                </label>
+                <div className="relative">
+                  <Mail className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2D6A4F]" />
+                  <input
+                    type="email"
+                    required
+                    placeholder="name@email.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white border border-[#DCD2C3] text-xs font-semibold text-[#0F2D1F] focus:outline-none focus:border-[#2D6A4F]"
+                  />
+                </div>
+              </div>
 
-          {/* Checkbox */}
-          <div className="flex items-start gap-2 pt-1">
-            <input
-              type="checkbox"
-              id="terms-check"
-              checked={accepted}
-              onChange={(e) => setAccepted(e.target.checked)}
-              className="mt-0.5 rounded border-[#DCD2C3] text-[#2D6A4F] focus:ring-[#2D6A4F]"
-            />
-            <label htmlFor="terms-check" className="text-[11px] text-[#556960] leading-snug cursor-pointer select-none">
-              I agree to Garuda Farms <span className="font-bold text-[#0F2D1F]">Terms of Service</span> & <span className="font-bold text-[#0F2D1F]">Privacy Policy</span>.
-            </label>
-          </div>
+              <div>
+                <label className="text-[11px] font-extrabold uppercase text-[#8C6239] tracking-wider block mb-1">
+                  Mobile Number (Mandatory for OTP Verification)
+                </label>
+                <div className="relative">
+                  <Phone className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2D6A4F]" />
+                  <input
+                    type="tel"
+                    required
+                    maxLength={10}
+                    placeholder="10-digit Indian mobile number"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white border border-[#DCD2C3] text-xs font-semibold text-[#0F2D1F] focus:outline-none focus:border-[#2D6A4F]"
+                  />
+                </div>
+              </div>
 
-          {/* Submit Button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#2D6A4F] via-[#387656] to-[#52B788] hover:from-[#1B4332] hover:to-[#2D6A4F] text-[#FAF8F2] text-xs font-black tracking-widest uppercase shadow-lg shadow-[#2D6A4F]/25 hover:shadow-xl transition-all hover:scale-[1.01] active:scale-[0.99] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
-          >
-            {loading ? (
-              <>
-                <RefreshCw className="w-4 h-4 animate-spin" />
-                <span>Creating Account...</span>
-              </>
-            ) : (
-              <>
-                <span>Create Farm Account</span>
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
-        </form>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-extrabold uppercase text-[#8C6239] tracking-wider block mb-1">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2D6A4F]" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full pl-10 pr-9 py-2.5 rounded-2xl bg-white border border-[#DCD2C3] text-xs font-semibold text-[#0F2D1F] focus:outline-none focus:border-[#2D6A4F]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 p-1"
+                    >
+                      {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-extrabold uppercase text-[#8C6239] tracking-wider block mb-1">
+                    Confirm Password
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#2D6A4F]" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      placeholder="••••••••"
+                      value={confirm}
+                      onChange={(e) => setConfirm(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white border border-[#DCD2C3] text-xs font-semibold text-[#0F2D1F] focus:outline-none focus:border-[#2D6A4F]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Password Strength Meter */}
+              {password && (
+                <div className="space-y-1 pt-1">
+                  <div className="flex justify-between items-center text-[10px] font-extrabold">
+                    <span className="text-[#556960]">Security Rating:</span>
+                    <span className="text-[#0F2D1F]">{strength.label}</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-stone-200 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-300 ${strength.color}`}
+                      style={{ width: `${strength.score}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-start gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="terms-check"
+                  checked={accepted}
+                  onChange={(e) => setAccepted(e.target.checked)}
+                  className="mt-0.5 rounded border-[#DCD2C3] text-[#2D6A4F] focus:ring-[#2D6A4F]"
+                />
+                <label htmlFor="terms-check" className="text-[11px] text-[#556960] leading-snug cursor-pointer select-none">
+                  I agree to Garuda Farms <span className="font-bold text-[#0F2D1F]">Terms of Service</span> & <span className="font-bold text-[#0F2D1F]">Privacy Policy</span>.
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-[#2D6A4F] via-[#387656] to-[#52B788] hover:from-[#1B4332] hover:to-[#2D6A4F] text-[#FAF8F2] text-xs font-black tracking-widest uppercase shadow-lg shadow-[#2D6A4F]/25 hover:shadow-xl transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+              >
+                {loading ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <span>Sending Mobile OTP...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Send Mobile Verification OTP</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
+              </button>
+            </form>
+          </>
+        )}
 
         {/* Footer Link to Login */}
         {onSwitchToLogin && (

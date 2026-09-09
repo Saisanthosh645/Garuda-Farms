@@ -82,6 +82,33 @@ export const api = {
     return res.json();
   },
 
+  // Auth OTP Verification
+  async sendPhoneOtp(phone: string): Promise<{ ok: boolean; message?: string; whatsappLink?: string; error?: string }> {
+    try {
+      const res = await fetch('/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone }),
+      });
+      return res.json();
+    } catch (e: any) {
+      return { ok: false, error: e.message || 'Network error sending OTP.' };
+    }
+  },
+
+  async verifyPhoneOtp(phone: string, otp: string): Promise<{ ok: boolean; verified?: boolean; error?: string }> {
+    try {
+      const res = await fetch('/api/auth/verify-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, otp }),
+      });
+      return res.json();
+    } catch (e: any) {
+      return { ok: false, error: e.message || 'Network error verifying OTP.' };
+    }
+  },
+
   // 2. Products
   async getProducts(params?: {
     category?: ProductCategory | 'All';

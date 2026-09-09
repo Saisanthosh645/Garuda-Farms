@@ -28,6 +28,7 @@ import { PoliciesModal, PolicyTab } from './components/PoliciesModal';
 import { TrackOrderModal } from './components/TrackOrderModal';
 import { ContactModal } from './components/ContactModal';
 import { WhatsAppButton } from './components/WhatsAppButton';
+import { FloatingCartBar } from './components/FloatingCartBar';
 
 // Micro-interactions & 3D Polish
 import { LoadingScreen } from './components/LoadingScreen';
@@ -105,20 +106,14 @@ export default function App() {
     });
   }, [liveProducts]);
 
-  // Sync wishlist from database whenever user logs in, and clear cart when logged out
+  // Sync wishlist from database whenever user logs in
   useEffect(() => {
     if (auth?.user) {
       api.getWishlist().then((res) => {
         if (res.ok && Array.isArray(res.productIds)) {
           setWishlistIds(res.productIds);
         }
-      }).catch(() => {});
-    } else {
-      // User logged out or unauthenticated: clear local cart to prevent guest checkout of user cart
-      setCart([]);
-      try {
-        localStorage.removeItem('garuda_cart');
-      } catch (e) {}
+      }).catch(() => { });
     }
   }, [auth?.user]);
 
@@ -534,54 +529,54 @@ export default function App() {
           />
         )}
 
-          {activeView === 'login' && (
-            <div className="pt-24 pb-12">
-              <LoginPage
-                onSwitchToSignup={() => navigateToAuthView('signup')}
-                onSwitchToForgot={() => navigateToAuthView('forgot')}
-                onSuccess={() => navigateToAuthView('account')}
-              />
-            </div>
-          )}
+        {activeView === 'login' && (
+          <div className="pt-24 pb-12">
+            <LoginPage
+              onSwitchToSignup={() => navigateToAuthView('signup')}
+              onSwitchToForgot={() => navigateToAuthView('forgot')}
+              onSuccess={() => navigateToAuthView('account')}
+            />
+          </div>
+        )}
 
-          {activeView === 'signup' && (
-            <div className="pt-24 pb-12">
-              <SignupPage
-                onSwitchToLogin={() => navigateToAuthView('login')}
-                onSuccess={() => navigateToAuthView('account')}
-              />
-            </div>
-          )}
+        {activeView === 'signup' && (
+          <div className="pt-24 pb-12">
+            <SignupPage
+              onSwitchToLogin={() => navigateToAuthView('login')}
+              onSuccess={() => navigateToAuthView('account')}
+            />
+          </div>
+        )}
 
-          {activeView === 'forgot' && (
-            <div className="pt-24 pb-12">
-              <ForgotPasswordPage
-                onSwitchToLogin={() => navigateToAuthView('login')}
-              />
-            </div>
-          )}
+        {activeView === 'forgot' && (
+          <div className="pt-24 pb-12">
+            <ForgotPasswordPage
+              onSwitchToLogin={() => navigateToAuthView('login')}
+            />
+          </div>
+        )}
 
-          {activeView === 'account' && (
-            <div className="pt-24">
-              <AccountPage
-                initialTab="overview"
-                allProducts={liveProducts}
-                onNavigateToProducts={() => navigateToView('products')}
-                onAddToCart={(p, w, q) => handleAddToCart(p, w, q)}
-              />
-            </div>
-          )}
+        {activeView === 'account' && (
+          <div className="pt-24">
+            <AccountPage
+              initialTab="overview"
+              allProducts={liveProducts}
+              onNavigateToProducts={() => navigateToView('products')}
+              onAddToCart={(p, w, q) => handleAddToCart(p, w, q)}
+            />
+          </div>
+        )}
 
-          {activeView === 'orders' && (
-            <div className="pt-24">
-              <AccountPage
-                initialTab="orders"
-                allProducts={liveProducts}
-                onNavigateToProducts={() => navigateToView('products')}
-                onAddToCart={(p, w, q) => handleAddToCart(p, w, q)}
-              />
-            </div>
-          )}
+        {activeView === 'orders' && (
+          <div className="pt-24">
+            <AccountPage
+              initialTab="orders"
+              allProducts={liveProducts}
+              onNavigateToProducts={() => navigateToView('products')}
+              onAddToCart={(p, w, q) => handleAddToCart(p, w, q)}
+            />
+          </div>
+        )}
 
         {activeView === 'cart' && (
           <CartPage
@@ -791,6 +786,22 @@ export default function App() {
       <ContactModal
         isOpen={isContactOpen}
         onClose={() => setIsContactOpen(false)}
+      />
+
+      {/* Floating Sticky Quick-Checkout Bar on Scroll */}
+      <FloatingCartBar
+        cart={cart}
+        isVisible={!isCartDrawerOpen && !isCheckoutOpen && activeView !== 'cart' && activeView !== 'admin'}
+        onOpenCart={() => setIsCartDrawerOpen(true)}
+        onCheckout={() => {
+          if (!auth?.user) {
+            setAuthInitialTab('login');
+            setAuthIntent({ type: 'checkout' });
+            setIsAuthModalOpen(true);
+            return;
+          }
+          setIsCheckoutOpen(true);
+        }}
       />
     </div>
   );

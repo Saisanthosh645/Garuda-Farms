@@ -4,6 +4,7 @@ import Razorpay from 'razorpay';
 import { getSupabase } from '../db/supabase';
 import { calculateServerDeliveryFee } from '../utils/distance';
 import { syncOrderToGoogleSheets } from '../utils/googleSheets';
+import { sendOrderNotification } from '../utils/smsWhatsapp';
 
 const router = Router();
 
@@ -19,6 +20,53 @@ function getRazorpayClient(): Razorpay | null {
     key_id: keyId,
     key_secret: keySecret,
   });
+}
+
+import { updateLocalStockQuantity, decrementLocalProductStock } from './products';
+
+/**
+ * Automatically decrements product stock quantity when orders are confirmed
+ */
+async function decrementProductStock(supabase: any, items: Array<{ product_id: any; quantity: number }>) {
+  if (!items || items.length === 0) return;
+
+  for (const item of items) {
+    try {
+      const pId = Number(item.product_id);
+      const qtyPurchased = Math.max(1, Math.floor(Number(item.quantity) || 1));
+
+      if (supabase) {
+        const { data: prod } = await supabase
+          .from('products')
+          .select('id, stock_quantity, is_in_stock')
+          .eq('id', pId)
+          .maybeSingle();
+
+        if (prod && prod.stock_quantity !== null && prod.stock_quantity !== undefined && !isNaN(Number(prod.stock_quantity))) {
+          const currentQty = Number(prod.stock_quantity);
+          const newStock = Math.max(0, currentQty - qtyPurchased);
+          const isInStock = newStock > 0;
+
+          await supabase
+            .from('products')
+            .update({
+              stock_quantity: newStock,
+              is_in_stock: isInStock,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', pId);
+
+          updateLocalStockQuantity(pId, newStock);
+          console.log(`[Stock Decremented] Product #${pId}: ${currentQty} -> ${newStock} (In Stock: ${isInStock})`);
+        }
+      } else {
+        // Fallback for local products cache
+        decrementLocalProductStock(pId, qtyPurchased);
+      }
+    } catch (err: any) {
+      console.warn(`[Stock Decrement Error] Product #${item.product_id}:`, err?.message);
+    }
+  }
 }
 
 /**
@@ -481,8 +529,22 @@ export async function handleVerifyPayment(req: Request, res: Response): Promise<
       });
     }
 
+    // Decrement product stock quantities automatically
+    decrementProductStock(supabase, calc.validatedItems);
+
     // Trigger secondary real-time Google Sheets backup sync (non-blocking)
     syncOrderToGoogleSheets({ ...orderRecord, items: calc.validatedItems });
+
+    // Trigger SMS, WhatsApp, and In-App notification
+    sendOrderNotification({
+      phone: orderRecord.customer_phone,
+      email: orderRecord.customer_email,
+      orderId,
+      type: 'ORDER_PLACED',
+      status: 'Confirmed',
+      totalAmount: calc.total,
+      customerName: orderRecord.customer_name,
+    }).catch((err) => console.warn('[Notification Error]', err));
 
     res.status(200).json({
       ok: true,
@@ -610,8 +672,22 @@ export async function handleCreateCodOrder(req: Request, res: Response): Promise
       });
     }
 
+    // Decrement product stock quantities automatically
+    decrementProductStock(supabase, calc.validatedItems);
+
     // Trigger secondary real-time Google Sheets backup sync (non-blocking)
     syncOrderToGoogleSheets({ ...orderRecord, items: calc.validatedItems });
+
+    // Trigger SMS, WhatsApp, and In-App notification
+    sendOrderNotification({
+      phone: orderRecord.customer_phone,
+      email: orderRecord.customer_email,
+      orderId,
+      type: 'ORDER_PLACED',
+      status: 'Confirmed',
+      totalAmount: calc.total,
+      customerName: orderRecord.customer_name,
+    }).catch((err) => console.warn('[Notification Error]', err));
 
     res.status(200).json({
       ok: true,

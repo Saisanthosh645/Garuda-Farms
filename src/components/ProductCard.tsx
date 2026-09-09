@@ -116,12 +116,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               </span>
             </div>
 
-            {/* Discount / Special Badge */}
-            {product.badge && (
+            {/* Hurry Up Low Stock Badge (< 5 left) */}
+            {product.stockQuantity !== undefined && product.stockQuantity !== null && product.stockQuantity > 0 && product.stockQuantity <= 5 ? (
+              <span className="absolute bottom-3 left-3 px-2.5 py-1 text-white text-[10px] font-black uppercase tracking-wider shadow-lg bg-gradient-to-r from-amber-600 via-rose-600 to-red-600 animate-pulse rounded-xl flex items-center gap-1 z-20">
+                🔥 Hurry up! Only {product.stockQuantity} left
+              </span>
+            ) : product.badge ? (
               <span className="absolute bottom-3 left-3 px-2.5 py-1 text-[#0F2D1F] text-[10px] font-black uppercase tracking-wider shadow-md" style={{ background: 'linear-gradient(135deg, #E9C46A, #D4A373)', borderRadius: '6px 20px 20px 20px' }}>
                 {product.badge}
               </span>
-            )}
+            ) : null}
 
             {/* Wishlist Heart Button */}
             <button
@@ -241,16 +245,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           {/* Add to Cart Button */}
           <button
             id={`product-add-btn-${product.id}`}
-            disabled={product.stock === false}
+            disabled={product.stock === false || product.stockQuantity === 0}
             onClick={handleAdd}
             className={`w-full py-3 text-xs font-bold tracking-wider uppercase transition-all duration-300 flex items-center justify-center gap-2 ${
-              product.stock === false
+              product.stock === false || product.stockQuantity === 0
                 ? 'bg-stone-300 text-stone-500 cursor-not-allowed'
                 : isAdded
                 ? 'scale-[0.98]'
                 : 'hover:scale-[1.02] active:scale-95'
             }`}
-            style={product.stock !== false ? (isAdded ? {
+            style={product.stock !== false && product.stockQuantity !== 0 ? (isAdded ? {
               background: 'linear-gradient(135deg,#52B788,#40916C)',
               color: '#0F2D1F',
               border: '1px solid rgba(82,183,136,0.5)',
@@ -264,8 +268,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({
               boxShadow: '0 6px 20px rgba(45,106,79,0.4), inset 0 1px 0 rgba(255,255,255,0.12)',
             }) : { borderRadius: '14px' }}
           >
-            {product.stock === false ? (
-              <span>Currently Unavailable</span>
+            {product.stock === false || product.stockQuantity === 0 ? (
+              <span>Out of Stock</span>
             ) : isAdded ? (
               <>
                 <Check className="w-4 h-4" />

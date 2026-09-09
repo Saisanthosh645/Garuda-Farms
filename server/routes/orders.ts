@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { requireUser, requireAdmin } from '../middleware/auth';
 import { getSupabase } from '../db/supabase';
 import { auditLog } from './admin';
+import { sendOrderNotification } from '../utils/smsWhatsapp';
 
 const router = Router();
 
@@ -291,6 +292,17 @@ router.patch('/admin/:id/status', requireAdmin, async (req: Request, res: Respon
         notes: `Status updated to ${order_status}`,
       });
     } catch {}
+
+    // Dispatch SMS, WhatsApp, and in-app notifications
+    sendOrderNotification({
+      phone: data.customer_phone,
+      email: data.customer_email,
+      orderId: id,
+      type: 'STATUS_CHANGE',
+      status: order_status || data.order_status,
+      totalAmount: data.total_amount,
+      customerName: data.customer_name,
+    }).catch((err) => console.warn('[Notification Error]', err));
 
     res.json({ ok: true, order: data, message: `Order #${id} status updated to "${order_status}".` });
   } catch (err: any) {

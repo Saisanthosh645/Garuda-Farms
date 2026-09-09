@@ -3,6 +3,7 @@ import { useAuth } from '../../auth/AuthProvider';
 import { api } from '../../lib/api';
 import { Product } from '../../types';
 import SproutLoader from '../../components/SproutLoader';
+import { InvoiceModal } from '../../components/InvoiceModal';
 import {
   User,
   ShoppingBag,
@@ -38,6 +39,7 @@ import {
   BellOff,
   BellRing,
   Percent,
+  FileText,
 } from 'lucide-react';
 
 interface AccountPageProps {
@@ -90,6 +92,8 @@ export const AccountPage: React.FC<AccountPageProps> = ({
   // Modals & UI controls
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [trackingData, setTrackingData] = useState<any | null>(null);
+  const [invoiceOrder, setInvoiceOrder] = useState<any | null>(null);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [isAddressModalOpen, setIsAddressModalOpen] = useState(false);
   const [editingAddress, setEditingAddress] = useState<any | null>(null);
   const [addressForm, setAddressForm] = useState({
@@ -953,11 +957,21 @@ export const AccountPage: React.FC<AccountPageProps> = ({
                                   <span>Buy Again</span>
                                 </button>
                                 <button
+                                  onClick={() => {
+                                    setInvoiceOrder(order);
+                                    setIsInvoiceModalOpen(true);
+                                  }}
+                                  className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-[#0F2D1F] text-xs font-bold rounded-xl border border-emerald-200 flex items-center gap-1.5 cursor-pointer"
+                                >
+                                  <FileText className="w-3.5 h-3.5 text-emerald-700" />
+                                  <span>Tax Invoice</span>
+                                </button>
+                                <button
                                   onClick={() => handleViewTracking(order)}
-                                  className="px-4 py-2 bg-[#2D6A4F] hover:bg-[#1B4332] text-[#FAF8F2] text-xs font-bold rounded-xl flex items-center gap-1.5"
+                                  className="px-4 py-2 bg-[#2D6A4F] hover:bg-[#1B4332] text-[#FAF8F2] text-xs font-bold rounded-xl flex items-center gap-1.5 cursor-pointer"
                                 >
                                   <Package className="w-3.5 h-3.5" />
-                                  <span>Track & Invoice</span>
+                                  <span>Track Live</span>
                                 </button>
                               </div>
                             </div>
@@ -1686,15 +1700,25 @@ export const AccountPage: React.FC<AccountPageProps> = ({
               {['Pending', 'Confirmed'].includes(selectedOrder.order_status) && (
                 <button
                   onClick={() => handleCancelOrder(selectedOrder.id)}
-                  className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold rounded-xl border border-red-200 flex items-center gap-1.5"
+                  className="px-4 py-2 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold rounded-xl border border-red-200 flex items-center gap-1.5 cursor-pointer"
                 >
                   <XCircle className="w-3.5 h-3.5" />
                   Cancel Order
                 </button>
               )}
               <button
+                onClick={() => {
+                  setInvoiceOrder(selectedOrder);
+                  setIsInvoiceModalOpen(true);
+                }}
+                className="px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-900 text-xs font-bold rounded-xl border border-emerald-300 flex items-center gap-1.5 cursor-pointer"
+              >
+                <FileText className="w-3.5 h-3.5 text-emerald-700" />
+                <span>Print GST Invoice</span>
+              </button>
+              <button
                 onClick={() => handleReorder(selectedOrder.id)}
-                className="px-4 py-2 bg-[#2D6A4F] hover:bg-[#1B4332] text-[#FAF8F2] text-xs font-bold rounded-xl flex items-center gap-1.5 ml-auto"
+                className="px-4 py-2 bg-[#2D6A4F] hover:bg-[#1B4332] text-[#FAF8F2] text-xs font-bold rounded-xl flex items-center gap-1.5 ml-auto cursor-pointer"
               >
                 <RefreshCw className="w-3.5 h-3.5" />
                 Buy Again
@@ -1855,6 +1879,12 @@ export const AccountPage: React.FC<AccountPageProps> = ({
           </div>
         </div>
       )}
+      {/* Invoice Modal for Customer */}
+      <InvoiceModal
+        isOpen={isInvoiceModalOpen}
+        onClose={() => setIsInvoiceModalOpen(false)}
+        order={invoiceOrder}
+      />
     </div>
   );
 };

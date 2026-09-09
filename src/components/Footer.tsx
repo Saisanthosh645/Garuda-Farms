@@ -1,5 +1,5 @@
 import React from 'react';
-import { Phone, Mail, MapPin, Instagram, Facebook, Youtube, ShieldCheck, Heart, Truck, RefreshCw, Award, FileText, Calendar } from 'lucide-react';
+import { Phone, Mail, MapPin, Instagram, Facebook, Youtube, ShieldCheck, Heart, Truck, RefreshCw, Award, FileText } from 'lucide-react';
 import { GarudaLogo } from './GarudaLogo';
 import { PolicyTab } from './PoliciesModal';
 
@@ -51,7 +51,7 @@ export const Footer: React.FC<FooterProps> = ({
                 onClick={() => onOpenPolicies?.('certifications')}
                 className="px-3 py-1 rounded-full bg-[#143D2B] border border-[#2D6A4F] text-[11px] text-[#52B788] font-bold flex items-center gap-1.5 hover:bg-[#1B4332] transition-colors cursor-pointer"
               >
-                <ShieldCheck className="w-3.5 h-3.5" /> FSSAI Lic. #13621014000382
+                <ShieldCheck className="w-3.5 h-3.5" /> FSSAI Certified
               </button>
               <button
                 type="button"
@@ -192,21 +192,12 @@ export const Footer: React.FC<FooterProps> = ({
                 <span>harvest@garudafarms.com</span>
               </a>
 
-              <div className="pt-2">
-                <button
-                  onClick={onOpenContact}
-                  className="w-full py-2 px-3 rounded-xl bg-[#143D2B] border border-[#2D6A4F] hover:bg-[#2D6A4F] text-[#52B788] hover:text-white transition-all text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
-                >
-                  <Calendar className="w-3.5 h-3.5" />
-                  <span>Book Gaushala Tour</span>
-                </button>
-              </div>
             </div>
 
             {/* Socials */}
             <div className="flex items-center gap-3 pt-3">
               <a
-                href="https://instagram.com"
+                href="https://www.instagram.com/garuda__farms/"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Instagram"
@@ -224,7 +215,7 @@ export const Footer: React.FC<FooterProps> = ({
                 <Facebook className="w-4 h-4" />
               </a>
               <a
-                href="https://youtube.com"
+                href="https://www.youtube.com/@GARUDAFARMSS"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="YouTube"

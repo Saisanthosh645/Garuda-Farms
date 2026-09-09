@@ -5,6 +5,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { signOut } from '../../lib/frontendAuth';
 import { useAuth } from '../../auth/AuthProvider';
 import SproutLoader from '../../components/SproutLoader';
+import { InvoiceModal } from '../../components/InvoiceModal';
 import {
   LayoutDashboard, Package, Layers, ShoppingBag, Users, Tag, Home, Settings,
   LogOut, RefreshCw, Plus, Edit2, Trash2, Eye, Search, Filter, Check, X,
@@ -428,7 +429,7 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
     name: '', category: 'Eggs', price: '', originalPrice: '', description: '',
     image: '', badge: '', farmOrigin: 'Garuda Sanctuary, Chevella',
     availableWeights: 'Standard Pack', defaultWeight: 'Standard Pack',
-    stock: true, featured: false, isActive: true,
+    stock: true, stockType: 'unlimited', stockQuantity: '25', featured: false, isActive: true,
   };
   const [form, setForm] = useState({ ...emptyForm });
 
@@ -464,6 +465,7 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    const isUnlimited = form.stockType === 'unlimited';
     const res = await api.createProduct({
       name: form.name,
       category: form.category,
@@ -475,7 +477,9 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
       farmOrigin: form.farmOrigin,
       availableWeights: form.availableWeights.split(',').map((s) => s.trim()),
       defaultWeight: form.defaultWeight,
-      stock: form.stock,
+      stockType: form.stockType,
+      stockQuantity: isUnlimited ? null : Number(form.stockQuantity || 0),
+      stock: isUnlimited ? true : Number(form.stockQuantity || 0) > 0,
       featured: form.featured,
     });
     setSaving(false);
@@ -494,6 +498,9 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
     e.preventDefault();
     if (!editProduct) return;
     setSaving(true);
+    const isUnlimited = editProduct.stockType === 'unlimited';
+    const qty = isUnlimited ? null : Number(editProduct.stockQuantity || 0);
+
     const res = await api.updateProduct(editProduct.id, {
       name: editProduct.name,
       price: Number(editProduct.price),
@@ -502,7 +509,9 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
       image: editProduct.image,
       badge: editProduct.badge || null,
       farmOrigin: editProduct.farmOrigin,
-      stock: editProduct.stock,
+      stockType: editProduct.stockType,
+      stockQuantity: qty,
+      stock: isUnlimited ? true : (qty !== null && qty > 0),
       featured: editProduct.featured,
       category: editProduct.category,
     });
@@ -518,9 +527,17 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
   };
 
   const handleToggleAvail = async (product: any) => {
-    const res = await api.updateProduct(product.id, { stock: !product.stock });
+    const isUnlimited = product.stockType === 'unlimited' || product.stockQuantity === null || product.stockQuantity === undefined;
+    const isTurningOn = !product.stock;
+    const newQty = isUnlimited ? null : (isTurningOn && Number(product.stockQuantity || 0) === 0 ? 25 : product.stockQuantity);
+
+    const res = await api.updateProduct(product.id, {
+      stock: isTurningOn,
+      stockType: isUnlimited ? 'unlimited' : 'quantity',
+      stockQuantity: newQty,
+    });
     if (res.ok) {
-      toast.show('success', `${product.name} is now ${!product.stock ? 'available' : 'unavailable'}`);
+      toast.show('success', `${product.name} is now ${isTurningOn ? 'available' : 'unavailable'}`);
       notifyProductsUpdated();
       load();
     }
@@ -642,14 +659,51 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
                   <input value={form.farmOrigin} onChange={(e) => setForm({ ...form, farmOrigin: e.target.value })}
                     className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-[#2D6A4F]" />
                 </div>
-                <div className="flex items-center gap-4 pt-2">
-                  <label className="flex items-center gap-2 cursor-pointer text-sm">
-                    <input type="checkbox" checked={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.checked })} className="w-4 h-4 accent-[#2D6A4F]" />
-                    Available
+
+                {/* Stock Management Controls */}
+                <div className="col-span-2 bg-stone-50 border border-stone-200 rounded-xl p-3.5 space-y-3">
+                  <label className="block text-xs font-bold text-stone-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <Package className="w-3.5 h-3.5 text-[#2D6A4F]" /> Admin Stock & Inventory Control
                   </label>
-                  <label className="flex items-center gap-2 cursor-pointer text-sm">
+                  <div className="flex flex-wrap items-center gap-5 text-xs font-semibold">
+                    <label className="flex items-center gap-2 cursor-pointer text-stone-800">
+                      <input type="radio" name="stockTypeCreate" value="unlimited"
+                        checked={form.stockType === 'unlimited'}
+                        onChange={() => setForm({ ...form, stockType: 'unlimited', stock: true, stockQuantity: '' })}
+                        className="w-4 h-4 accent-[#2D6A4F]" />
+                      <span>♾️ Unlimited Stock</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-stone-800">
+                      <input type="radio" name="stockTypeCreate" value="quantity"
+                        checked={form.stockType === 'quantity'}
+                        onChange={() => setForm({ ...form, stockType: 'quantity', stockQuantity: form.stockQuantity || '25' })}
+                        className="w-4 h-4 accent-[#2D6A4F]" />
+                      <span>📦 Limited Stock (Set Quantity)</span>
+                    </label>
+                  </div>
+
+                  {form.stockType === 'quantity' && (
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pt-1 border-t border-stone-200/60">
+                      <div className="flex-1 w-full">
+                        <label className="block text-[11px] font-bold text-stone-600 mb-1">Available Units Count</label>
+                        <input type="number" min="0" value={form.stockQuantity} onChange={(e) => setForm({ ...form, stockQuantity: e.target.value })} placeholder="e.g. 25"
+                          className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm font-bold text-stone-900 focus:outline-none focus:border-[#2D6A4F] bg-white" />
+                      </div>
+                      <div className="text-[11px] text-stone-500 sm:max-w-[220px] leading-tight">
+                        ⚡ If remaining stock drops to <span className="font-bold text-amber-700">5 or less</span>, storefront will display <span className="font-bold text-amber-700">"Hurry up! Only X left"</span>.
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-4 pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
+                    <input type="checkbox" checked={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.checked })} className="w-4 h-4 accent-[#2D6A4F]" />
+                    Is Active / Enabled
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
                     <input type="checkbox" checked={form.featured} onChange={(e) => setForm({ ...form, featured: e.target.checked })} className="w-4 h-4 accent-amber-500" />
-                    Featured
+                    Featured on Storefront
                   </label>
                 </div>
               </div>
@@ -719,12 +773,49 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
                   </div>
                   {editProduct.image && <img src={editProduct.image} alt="preview" className="mt-2 h-16 w-16 object-cover rounded-xl border" />}
                 </div>
-                <div className="flex items-center gap-4 pt-2">
-                  <label className="flex items-center gap-2 cursor-pointer text-sm">
+
+                {/* Stock Management Controls for Edit */}
+                <div className="col-span-2 bg-stone-50 border border-stone-200 rounded-xl p-3.5 space-y-3">
+                  <label className="block text-xs font-bold text-stone-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <Package className="w-3.5 h-3.5 text-[#2D6A4F]" /> Admin Stock & Inventory Control
+                  </label>
+                  <div className="flex flex-wrap items-center gap-5 text-xs font-semibold">
+                    <label className="flex items-center gap-2 cursor-pointer text-stone-800">
+                      <input type="radio" name="stockTypeEdit" value="unlimited"
+                        checked={editProduct.stockType === 'unlimited'}
+                        onChange={() => setEditProduct({ ...editProduct, stockType: 'unlimited', stock: true, stockQuantity: null })}
+                        className="w-4 h-4 accent-[#2D6A4F]" />
+                      <span>♾️ Unlimited Stock</span>
+                    </label>
+                    <label className="flex items-center gap-2 cursor-pointer text-stone-800">
+                      <input type="radio" name="stockTypeEdit" value="quantity"
+                        checked={editProduct.stockType === 'quantity'}
+                        onChange={() => setEditProduct({ ...editProduct, stockType: 'quantity', stockQuantity: editProduct.stockQuantity ?? 25 })}
+                        className="w-4 h-4 accent-[#2D6A4F]" />
+                      <span>📦 Limited Stock (Set Quantity)</span>
+                    </label>
+                  </div>
+
+                  {editProduct.stockType === 'quantity' && (
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pt-1 border-t border-stone-200/60">
+                      <div className="flex-1 w-full">
+                        <label className="block text-[11px] font-bold text-stone-600 mb-1">Available Units Count</label>
+                        <input type="number" min="0" value={editProduct.stockQuantity ?? ''} onChange={(e) => setEditProduct({ ...editProduct, stockQuantity: e.target.value })} placeholder="e.g. 25"
+                          className="w-full px-3 py-2 rounded-lg border border-stone-200 text-sm font-bold text-stone-900 focus:outline-none focus:border-[#2D6A4F] bg-white" />
+                      </div>
+                      <div className="text-[11px] text-stone-500 sm:max-w-[220px] leading-tight">
+                        ⚡ If remaining stock drops to <span className="font-bold text-amber-700">5 or less</span>, storefront will display <span className="font-bold text-amber-700">"Hurry up! Only X left"</span>.
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-4 pt-1">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
                     <input type="checkbox" checked={editProduct.stock} onChange={(e) => setEditProduct({ ...editProduct, stock: e.target.checked })} className="w-4 h-4 accent-[#2D6A4F]" />
                     Available in Stock
                   </label>
-                  <label className="flex items-center gap-2 cursor-pointer text-sm">
+                  <label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
                     <input type="checkbox" checked={editProduct.featured} onChange={(e) => setEditProduct({ ...editProduct, featured: e.target.checked })} className="w-4 h-4 accent-amber-500" />
                     Featured
                   </label>
@@ -775,57 +866,94 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
                   <th className="p-3 pl-4">Product</th>
                   <th className="p-3">Category</th>
                   <th className="p-3">Price</th>
-                  <th className="p-3 text-center">Available</th>
+                  <th className="p-3 text-center">Stock Level</th>
+                  <th className="p-3 text-center">Status</th>
                   <th className="p-3 text-center">Featured</th>
                   <th className="p-3 text-right pr-4">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
                 {filtered.length === 0 ? (
-                  <tr><td colSpan={6} className="p-8 text-center text-stone-400 text-sm">No products found.</td></tr>
-                ) : filtered.map((p) => (
-                  <tr key={p.id} className="hover:bg-stone-50/50 transition-colors">
-                    <td className="p-3 pl-4">
-                      <div className="flex items-center gap-3">
-                        <img src={p.image} alt={p.name} className="w-10 h-10 rounded-xl object-cover border border-stone-200"
-                          onError={(e) => { (e.target as any).src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=100&q=80'; }} />
-                        <div>
-                          <p className="text-sm font-semibold text-stone-900 leading-tight">{p.name}</p>
-                          <p className="text-[10px] text-stone-400">ID #{p.id}</p>
+                  <tr><td colSpan={7} className="p-8 text-center text-stone-400 text-sm">No products found.</td></tr>
+                ) : filtered.map((p) => {
+                  const isUnlimited = p.stockType === 'unlimited' || p.stockQuantity === null || p.stockQuantity === undefined;
+                  const qty = Number(p.stockQuantity ?? 0);
+
+                  return (
+                    <tr key={p.id} className="hover:bg-stone-50/50 transition-colors">
+                      <td className="p-3 pl-4">
+                        <div className="flex items-center gap-3">
+                          <img src={p.image} alt={p.name} className="w-10 h-10 rounded-xl object-cover border border-stone-200"
+                            onError={(e) => { (e.target as any).src = 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=100&q=80'; }} />
+                          <div>
+                            <p className="text-sm font-semibold text-stone-900 leading-tight">{p.name}</p>
+                            <p className="text-[10px] text-stone-400">ID #{p.id}</p>
+                          </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="p-3 text-xs text-stone-600">{p.category}</td>
-                    <td className="p-3">
-                      <span className="text-sm font-bold text-stone-900">₹{p.price}</span>
-                      {p.originalPrice > p.price && <span className="text-[10px] text-stone-400 line-through ml-1">₹{p.originalPrice}</span>}
-                    </td>
-                    <td className="p-3 text-center">
-                      <button onClick={() => handleToggleAvail(p)}
-                        className={`w-8 h-5 rounded-full transition-colors relative ${p.stock ? 'bg-emerald-500' : 'bg-stone-300'}`}>
-                        <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${p.stock ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
-                      </button>
-                    </td>
-                    <td className="p-3 text-center">
-                      <button onClick={() => handleToggleFeatured(p)}
-                        className={`text-sm transition-colors ${p.featured ? 'text-amber-500' : 'text-stone-300 hover:text-amber-400'}`}>
-                        ⭐
-                      </button>
-                    </td>
-                    <td className="p-3 text-right pr-4">
-                      <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => setEditProduct({ ...p })}
-                          className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-500 hover:text-stone-900 transition-colors">
-                          <Edit2 className="w-4 h-4" />
+                      </td>
+                      <td className="p-3 text-xs text-stone-600">{p.category}</td>
+                      <td className="p-3">
+                        <span className="text-sm font-bold text-stone-900">₹{p.price}</span>
+                        {p.originalPrice > p.price && <span className="text-[10px] text-stone-400 line-through ml-1">₹{p.originalPrice}</span>}
+                      </td>
+                      <td className="p-3 text-center">
+                        {!p.stock ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 text-xs font-bold border border-stone-200">
+                            🚫 Disabled
+                          </span>
+                        ) : isUnlimited ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-bold border border-blue-200">
+                            ♾️ Unlimited
+                          </span>
+                        ) : qty !== null && qty > 5 ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200">
+                            📦 {qty} Units
+                          </span>
+                        ) : qty !== null && qty > 0 ? (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-extrabold border border-amber-300 animate-pulse">
+                            🔥 {qty} Left
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-bold border border-red-200">
+                            ❌ Out of Stock
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-3 text-center">
+                        <button onClick={() => handleToggleAvail(p)}
+                          className={`w-8 h-5 rounded-full transition-colors relative ${p.stock ? 'bg-emerald-500' : 'bg-stone-300'}`}>
+                          <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${p.stock ? 'translate-x-3.5' : 'translate-x-0.5'}`} />
                         </button>
-                        <button onClick={() => setConfirmDelete(p)}
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-stone-400 hover:text-red-600 transition-colors">
-                          <Trash2 className="w-4 h-4" />
+                      </td>
+                      <td className="p-3 text-center">
+                        <button onClick={() => handleToggleFeatured(p)}
+                          className={`text-sm transition-colors ${p.featured ? 'text-amber-500' : 'text-stone-300 hover:text-amber-400'}`}>
+                          ⭐
                         </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td className="p-3 text-right pr-4">
+                        <div className="flex items-center justify-end gap-2">
+                          <button onClick={() => {
+                            const isUnl = p.stockType === 'unlimited' || p.stockQuantity === null || p.stockQuantity === undefined;
+                            setEditProduct({
+                              ...p,
+                              stockType: isUnl ? 'unlimited' : 'quantity',
+                              stockQuantity: isUnl ? null : (p.stockQuantity ?? 25),
+                              stock: isUnl ? true : p.stock,
+                            });
+                          }}
+                            className="p-1.5 rounded-lg hover:bg-stone-100 text-stone-500 hover:text-stone-900 transition-colors">
+                            <Edit2 className="w-4 h-4" />
+                          </button>
+                          <button onClick={() => setConfirmDelete(p)}
+                            className="p-1.5 rounded-lg hover:bg-red-50 text-stone-400 hover:text-red-600 transition-colors">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -1026,6 +1154,8 @@ function OrdersSection({ toast }: { toast: ReturnType<typeof useToast> }) {
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [invoiceOrder, setInvoiceOrder] = useState<any | null>(null);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
   const load = async (status = statusFilter, q = search) => {
     setLoading(true);
@@ -1120,7 +1250,19 @@ function OrdersSection({ toast }: { toast: ReturnType<typeof useToast> }) {
                 <div className="bg-stone-50 rounded-xl p-3 space-y-1 text-sm">
                   <p><span className="font-semibold">Name:</span> {selectedOrder.customer_name}</p>
                   <p><span className="font-semibold">Email:</span> {selectedOrder.customer_email}</p>
-                  <p><span className="font-semibold">Phone:</span> {selectedOrder.customer_phone}</p>
+                  <div className="flex items-center justify-between pt-1">
+                    <p><span className="font-semibold">Phone:</span> {selectedOrder.customer_phone}</p>
+                    {selectedOrder.customer_phone && (
+                      <a
+                        href={`https://wa.me/${selectedOrder.customer_phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Hello ${selectedOrder.customer_name || 'Patron'}, regarding your Garuda Farms Order #${selectedOrder.id}: Status is "${selectedOrder.order_status}". Track live: https://garudafarms.com/track`)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 transition-all"
+                      >
+                        💬 WhatsApp Customer
+                      </a>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -1196,12 +1338,24 @@ function OrdersSection({ toast }: { toast: ReturnType<typeof useToast> }) {
                 <div className="flex justify-between text-stone-600"><span>Delivery</span><span>₹{Number(selectedOrder.delivery_charge).toFixed(2)}</span></div>
                 <div className="flex justify-between font-bold text-stone-900 text-base pt-1 border-t border-stone-200"><span>Total</span><span>₹{Number(selectedOrder.total_amount).toFixed(2)}</span></div>
               </div>
-              <button 
-                onClick={() => handleDeleteSingleOrder(selectedOrder.id)}
-                className="w-full mt-4 px-4 py-2 bg-red-50 text-red-600 rounded-xl text-sm font-bold border border-red-100 hover:bg-red-100 transition-colors"
-              >
-                Delete Order
-              </button>
+              <div className="flex gap-2 mt-4">
+                <button 
+                  onClick={() => {
+                    setInvoiceOrder(selectedOrder);
+                    setShowInvoiceModal(true);
+                  }}
+                  className="flex-1 px-4 py-2.5 bg-[#2D6A4F] hover:bg-[#1B4332] text-white rounded-xl text-xs font-bold shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>Download GST Invoice</span>
+                </button>
+                <button 
+                  onClick={() => handleDeleteSingleOrder(selectedOrder.id)}
+                  className="px-4 py-2.5 bg-red-50 text-red-600 rounded-xl text-xs font-bold border border-red-100 hover:bg-red-100 transition-colors"
+                >
+                  Delete Order
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -1325,12 +1479,22 @@ function OrdersSection({ toast }: { toast: ReturnType<typeof useToast> }) {
                     <td className="p-3 pr-4 text-right">
                       <div className="flex items-center justify-end gap-1.5">
                         <button onClick={() => setSelectedOrder(ord)}
-                          className="px-2.5 py-1 rounded-lg bg-[#2D6A4F] text-white text-xs font-bold hover:bg-[#1B4332] flex items-center gap-1">
+                          className="px-2.5 py-1 rounded-lg bg-[#2D6A4F] text-white text-xs font-bold hover:bg-[#1B4332] flex items-center gap-1 cursor-pointer">
                           <Eye className="w-3 h-3" /> View
+                        </button>
+                        <button
+                          onClick={() => {
+                            setInvoiceOrder(ord);
+                            setShowInvoiceModal(true);
+                          }}
+                          title="Print / Download Tax Invoice"
+                          className="px-2 py-1 rounded-lg border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-700 text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                        >
+                          <FileText className="w-3.5 h-3.5 text-[#2D6A4F]" /> Invoice
                         </button>
                         <button onClick={() => handleDeleteSingleOrder(ord.id)}
                           title="Delete Order"
-                          className="p-1.5 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 transition-colors">
+                          className="p-1.5 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 transition-colors cursor-pointer">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -1343,6 +1507,13 @@ function OrdersSection({ toast }: { toast: ReturnType<typeof useToast> }) {
           <div className="px-4 py-2 border-t border-stone-100 text-xs text-stone-400">{orders.length} orders</div>
         </div>
       )}
+
+      {/* Invoice Modal for Admin */}
+      <InvoiceModal
+        isOpen={showInvoiceModal}
+        onClose={() => setShowInvoiceModal(false)}
+        order={invoiceOrder}
+      />
     </div>
   );
 }

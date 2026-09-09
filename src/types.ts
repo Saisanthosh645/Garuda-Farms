@@ -26,6 +26,8 @@ export interface Product {
   badge?: string;
   farmOrigin: string;
   stock: boolean;
+  stockType?: 'unlimited' | 'quantity';
+  stockQuantity?: number | null;
   featured?: boolean;
   organicCert?: string;
   tags: string[];

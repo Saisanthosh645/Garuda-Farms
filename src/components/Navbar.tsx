@@ -44,7 +44,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   const navItems: { label: string; view: 'home' | 'products' | 'story' | 'sustainability'; badge?: string }[] = [
     { label: 'HOME', view: 'home' },
-    { label: 'STORE (50 PRODUCTS)', view: 'products', badge: '50 Fresh' },
+    { label: 'STORE', view: 'products', badge: '50 Fresh' },
     { label: 'OUR SANCTUARY', view: 'story' },
     { label: 'SUSTAINABILITY', view: 'sustainability' },
   ];
@@ -69,29 +69,29 @@ export const Navbar: React.FC<NavbarProps> = ({
       <div className="fixed top-0 left-0 right-0 z-40 flex flex-col">
         {/* Top Luxury Announcement Bar */}
         {!topBannerDismissed && (
-          <div className="bg-gradient-to-r from-[#0B2317] via-[#143823] to-[#0B2317] border-b border-[#C49A45]/25 text-[#FAF8F2] py-1.5 px-3 sm:px-6 text-[10.5px] sm:text-xs font-bold tracking-wide transition-all shadow-inner">
-            <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
+          <div className="bg-[#0B2317] border-b border-[#C49A45]/20 text-[#FAF8F2] py-1.5 px-4 text-[11px] font-medium tracking-wide transition-all">
+            <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
               {/* Left Badge */}
-              <div className="hidden sm:flex items-center gap-2 shrink-0">
-                <span className="inline-flex items-center gap-1 bg-[#C49A45]/20 text-[#DEB86A] px-2 py-0.5 rounded-full border border-[#C49A45]/30 text-[9.5px] font-black uppercase tracking-widest">
-                  <Sparkles className="w-3 h-3 text-[#DEB86A] animate-spin-slow" />
+              <div className="hidden lg:flex items-center gap-2 shrink-0">
+                <span className="inline-flex items-center gap-1 bg-[#C49A45]/15 text-[#DEB86A] px-2 py-0.5 rounded-full border border-[#C49A45]/30 text-[9.5px] font-bold uppercase tracking-wider">
+                  <Sparkles className="w-2.5 h-2.5 text-[#DEB86A]" />
                   Farm Direct
                 </span>
-                <span className="text-[#FAF8F2]/75">100% Organic & Chemical-Free</span>
+                <span className="text-[#FAF8F2]/70 text-[11px]">100% Organic & Chemical-Free</span>
               </div>
 
-              {/* Center Announcement Ticker */}
-              <div className="flex-1 text-center truncate px-2 font-medium">
-                <span className="text-[#DEB86A] font-extrabold mr-1.5">🍃 FRESH HARVEST:</span>
-                <span className="text-[#FAF8F2]">Complimentary Cold-Chain Express Shipping on orders over ₹499!</span>
+              {/* Center Announcement */}
+              <div className="flex-1 text-center truncate font-medium text-xs">
+                <span className="text-[#DEB86A] font-bold">🍃 Free Express Delivery</span>
+                <span className="text-[#FAF8F2]/90 ml-1">on orders above ₹499</span>
               </div>
 
-              {/* Right Quick Controls */}
+              {/* Right Controls */}
               <div className="flex items-center gap-3 shrink-0">
                 {onOpenTrackOrder && (
                   <button
                     onClick={onOpenTrackOrder}
-                    className="hidden md:flex items-center gap-1 text-[#DEB86A] hover:text-white transition-colors cursor-pointer"
+                    className="hidden sm:flex items-center gap-1 text-[#DEB86A] hover:text-white transition-colors cursor-pointer text-[11px] font-semibold"
                   >
                     <Truck className="w-3 h-3" />
                     <span>Track Order</span>

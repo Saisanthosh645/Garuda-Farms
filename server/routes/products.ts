@@ -10,6 +10,40 @@ const router = Router();
 // In-memory runtime cache/mirror of the 50 products when Supabase is not connected
 let localProducts = [...PRODUCTS];
 
+export function updateLocalStockQuantity(productId: number | string, newQuantity: number | null) {
+  const pId = Number(productId);
+  const idx = localProducts.findIndex((p) => Number(p.id) === pId);
+  if (idx !== -1) {
+    if (newQuantity === null) {
+      localProducts[idx].stock = true;
+      (localProducts[idx] as any).stockQuantity = null;
+      (localProducts[idx] as any).stockType = 'unlimited';
+    } else {
+      const q = Math.max(0, Number(newQuantity));
+      (localProducts[idx] as any).stockQuantity = q;
+      (localProducts[idx] as any).stockType = 'quantity';
+      localProducts[idx].stock = q > 0;
+    }
+  }
+}
+
+export function decrementLocalProductStock(productId: number | string, qtyPurchased: number) {
+  const pId = Number(productId);
+  const idx = localProducts.findIndex((p) => Number(p.id) === pId);
+  if (idx !== -1) {
+    const item = localProducts[idx] as any;
+    const isUnl = item.stockType === 'unlimited' || item.stockQuantity === null;
+    if (!isUnl) {
+      const current = Number(item.stockQuantity ?? 75);
+      const newQty = Math.max(0, current - qtyPurchased);
+      item.stockQuantity = newQty;
+      item.stockType = 'quantity';
+      item.stock = newQty > 0;
+      console.log(`[Local Stock Decremented] Product #${pId}: ${current} -> ${newQty}`);
+    }
+  }
+}
+
 // GET /api/products
 router.get('/', async (req: Request, res: Response): Promise<void> => {
   try {
@@ -50,29 +84,35 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
       const { data, error } = await query;
 
       if (!error && data) {
-        // Map database columns to match customer frontend Product interface
-        const formatted = data.map((p) => ({
-          id: p.id,
-          name: p.name,
-          category: p.category,
-          description: p.description,
-          image: p.image,
-          fallbackImage: p.fallback_image,
-          price: Number(p.price),
-          originalPrice: Number(p.original_price),
-          rating: Number(p.rating),
-          reviews: p.reviews_count,
-          availableWeights: p.available_weights || ['Standard Pack'],
-          defaultWeight: p.default_weight || 'Standard Pack',
-          badge: p.badge,
-          farmOrigin: p.farm_origin,
-          stock: p.is_in_stock !== false,
-          stockQuantity: p.stock_quantity,
-          featured: p.is_featured,
-          organicCert: p.organic_cert,
-          tags: p.tags || [],
-          nutritionHighlights: p.nutrition_highlights || [],
-        }));
+        const formatted = data.map((p) => {
+          const isUnl = p.stock_quantity === null || p.stock_quantity === undefined || p.stock_type === 'unlimited';
+          const qty = isUnl ? null : Number(p.stock_quantity ?? 0);
+          const isAvail = p.is_in_stock !== false;
+
+          return {
+            id: p.id,
+            name: p.name,
+            category: p.category,
+            description: p.description,
+            image: p.image,
+            fallbackImage: p.fallback_image,
+            price: Number(p.price),
+            originalPrice: Number(p.original_price),
+            rating: Number(p.rating),
+            reviews: p.reviews_count,
+            availableWeights: p.available_weights || ['Standard Pack'],
+            defaultWeight: p.default_weight || 'Standard Pack',
+            badge: p.badge,
+            farmOrigin: p.farm_origin,
+            stock: isUnl ? isAvail : (isAvail && qty !== null && qty > 0),
+            stockType: isUnl ? 'unlimited' : 'quantity',
+            stockQuantity: qty,
+            featured: p.is_featured,
+            organicCert: p.organic_cert,
+            tags: p.tags || [],
+            nutritionHighlights: p.nutrition_highlights || [],
+          };
+        });
 
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
         res.json({
@@ -119,11 +159,25 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
       list.sort((a, b) => b.rating - a.rating);
     }
 
+    const formattedLocal = list.map((p) => {
+      const isUnl = p.stockType === 'unlimited' || p.stockQuantity === null || (p.stockQuantity === undefined && (p as any).stock_quantity === undefined);
+      const rawQty = p.stockQuantity !== undefined ? p.stockQuantity : ((p as any).stock_quantity !== undefined ? (p as any).stock_quantity : (p.stock ? 75 : 0));
+      const qty = isUnl ? null : (rawQty !== null ? Number(rawQty) : null);
+      const isAvail = p.stock !== false;
+
+      return {
+        ...p,
+        stock: isUnl ? isAvail : (isAvail && qty !== null && qty > 0),
+        stockType: isUnl ? 'unlimited' : 'quantity',
+        stockQuantity: qty,
+      };
+    });
+
     res.json({
       ok: true,
-      count: list.length,
+      count: formattedLocal.length,
       source: 'local_seeded',
-      products: list,
+      products: formattedLocal,
     });
   } catch (err: any) {
     res.status(500).json({ ok: false, error: err.message });
@@ -166,7 +220,10 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
             defaultWeight: data.default_weight,
             badge: data.badge,
             farmOrigin: data.farm_origin,
-            stock: data.is_in_stock !== false,
+            stock: data.stock_quantity === null || data.stock_quantity === undefined
+              ? data.is_in_stock !== false
+              : data.is_in_stock !== false && Number(data.stock_quantity) > 0,
+            stockType: data.stock_quantity === null || data.stock_quantity === undefined ? 'unlimited' : 'quantity',
             stockQuantity: data.stock_quantity,
             featured: data.is_featured,
             organicCert: data.organic_cert,
@@ -226,8 +283,8 @@ router.post('/', requireAdmin, async (req: Request, res: Response): Promise<void
         available_weights: body.availableWeights || ['1kg'],
         default_weight: body.defaultWeight || '1kg',
         farm_origin: body.farmOrigin || 'Garuda Sanctuary, Chevella',
-        is_in_stock: body.stock !== false,
-        stock_quantity: body.stockQuantity || 50,
+        is_in_stock: body.stockType === 'unlimited' ? true : (body.stockQuantity !== undefined && body.stockQuantity !== null ? Number(body.stockQuantity) > 0 : body.stock !== false),
+        stock_quantity: body.stockType === 'unlimited' ? null : (body.stockQuantity !== undefined && body.stockQuantity !== null ? Number(body.stockQuantity) : null),
         is_featured: Boolean(body.featured),
         badge: body.badge || null,
         tags: body.tags || [],
@@ -302,8 +359,17 @@ router.put('/:id', requireAdmin, async (req: Request, res: Response): Promise<vo
       if (body.name !== undefined) updates.name = body.name;
       if (body.price !== undefined) updates.price = Number(body.price);
       if (body.originalPrice !== undefined) updates.original_price = Number(body.originalPrice);
-      if (body.stock !== undefined) updates.is_in_stock = Boolean(body.stock);
-      if (body.stockQuantity !== undefined) updates.stock_quantity = Number(body.stockQuantity);
+      if (body.stockType === 'unlimited') {
+        updates.stock_quantity = null;
+        updates.is_in_stock = true;
+      } else if (body.stockQuantity !== undefined) {
+        const qty = body.stockQuantity === null || body.stockQuantity === '' ? null : Number(body.stockQuantity);
+        updates.stock_quantity = qty;
+        if (qty !== null) updates.is_in_stock = qty > 0;
+      }
+      if (body.stock !== undefined && body.stockType !== 'unlimited' && body.stockQuantity === undefined) {
+        updates.is_in_stock = Boolean(body.stock);
+      }
       if (body.category !== undefined) updates.category = body.category;
       if (body.badge !== undefined) updates.badge = body.badge;
       if (body.featured !== undefined) updates.is_featured = Boolean(body.featured);
@@ -332,7 +398,11 @@ router.put('/:id', requireAdmin, async (req: Request, res: Response): Promise<vo
       if (localIdx !== -1) {
         localProducts[localIdx] = {
           ...localProducts[localIdx],
-          stock: Boolean(data.is_in_stock && data.is_active),
+          stock: data.stock_quantity === null || data.stock_quantity === undefined
+            ? data.is_in_stock !== false
+            : data.is_in_stock !== false && Number(data.stock_quantity) > 0,
+          stockType: data.stock_quantity === null || data.stock_quantity === undefined ? 'unlimited' : 'quantity',
+          stockQuantity: data.stock_quantity,
           price: Number(data.price),
           name: data.name,
         };

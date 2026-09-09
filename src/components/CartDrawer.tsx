@@ -116,14 +116,31 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 </button>
               </div>
 
-              {/* Free Delivery Bar */}
-              {subtotal > 0 && subtotal < freeShippingThreshold && (
-                <div className="bg-[#FAF8F2] px-6 py-2.5 border-b border-[#EFE8DC] text-xs text-[#2D6A4F] font-semibold flex items-center justify-between">
-                  <span>
-                    Add <strong>₹{freeShippingThreshold - subtotal}</strong> more for{' '}
-                    <strong>FREE Delivery</strong>
-                  </span>
-                  <Sparkles className="w-3.5 h-3.5 text-[#E9C46A]" />
+              {/* Visual Free Delivery Progress Bar */}
+              {subtotal > 0 && (
+                <div className="bg-[#FAF8F2] px-6 py-3 border-b border-[#EFE8DC] space-y-1.5">
+                  <div className="flex items-center justify-between text-xs text-[#2D6A4F] font-semibold">
+                    {subtotal >= freeShippingThreshold ? (
+                      <span className="flex items-center gap-1.5 text-[#2D6A4F]">
+                        <Sparkles className="w-3.5 h-3.5 text-[#E9C46A] animate-spin" />
+                        <strong>🎉 Congratulations! You unlocked FREE Express Shipping!</strong>
+                      </span>
+                    ) : (
+                      <span>
+                        Add <strong>₹{freeShippingThreshold - subtotal}</strong> more for{' '}
+                        <strong>FREE Delivery</strong>
+                      </span>
+                    )}
+                    <span className="text-[11px] text-[#556960]">
+                      {Math.min(100, Math.round((subtotal / freeShippingThreshold) * 100))}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-[#E5DEC9] h-2 rounded-full overflow-hidden">
+                    <div
+                      className="bg-gradient-to-r from-[#2D6A4F] to-[#52B788] h-full rounded-full transition-all duration-500 ease-out"
+                      style={{ width: `${Math.min(100, (subtotal / freeShippingThreshold) * 100)}%` }}
+                    />
+                  </div>
                 </div>
               )}
 

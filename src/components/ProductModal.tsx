@@ -142,6 +142,14 @@ export const ProductModal: React.FC<ProductModalProps> = ({
                   </span>
                 </div>
 
+                {/* Stock Urgency Alert (< 5 left) */}
+                {product.stockQuantity !== undefined && product.stockQuantity !== null && product.stockQuantity > 0 && product.stockQuantity <= 5 && (
+                  <div className="mt-3 p-3 rounded-2xl bg-gradient-to-r from-amber-500/15 to-rose-500/15 border border-amber-300 text-rose-900 text-xs font-bold flex items-center gap-2 animate-pulse shadow-sm">
+                    <span className="text-base">🔥</span>
+                    <span>Hurry up! Only {product.stockQuantity} items left in today's harvest!</span>
+                  </div>
+                )}
+
                 {/* Description */}
                 <p className="text-xs sm:text-sm text-[#556960] mt-3 leading-relaxed">
                   {product.description}
