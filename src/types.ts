@@ -29,6 +29,7 @@ export interface Product {
   stockType?: 'unlimited' | 'quantity';
   stockQuantity?: number | null;
   featured?: boolean;
+  hidden?: boolean;
   organicCert?: string;
   tags: string[];
   nutritionHighlights?: string[];

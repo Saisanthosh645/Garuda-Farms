@@ -108,18 +108,23 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
             stockType: isUnl ? 'unlimited' : 'quantity',
             stockQuantity: qty,
             featured: p.is_featured,
+            hidden: p.is_hidden === true || p.is_active === false || (p as any).hidden === true,
             organicCert: p.organic_cert,
             tags: p.tags || [],
             nutritionHighlights: p.nutrition_highlights || [],
           };
         });
 
+        const filteredSupabase = active_only !== 'false'
+          ? formatted.filter((p) => !p.hidden)
+          : formatted;
+
         res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
         res.json({
           ok: true,
-          count: formatted.length,
+          count: filteredSupabase.length,
           source: 'supabase',
-          products: formatted,
+          products: filteredSupabase,
         });
         return;
       }
@@ -129,8 +134,8 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
     let list = [...localProducts];
 
     if (active_only !== 'false') {
-      // Storefront: hide unavailable products in local fallback too
-      list = list.filter((p) => p.stock !== false);
+      // Storefront: hide unavailable and hidden products in local fallback too
+      list = list.filter((p) => p.stock !== false && !p.hidden);
     }
 
     if (category && category !== 'All') {
@@ -170,6 +175,7 @@ router.get('/', async (req: Request, res: Response): Promise<void> => {
         stock: isUnl ? isAvail : (isAvail && qty !== null && qty > 0),
         stockType: isUnl ? 'unlimited' : 'quantity',
         stockQuantity: qty,
+        hidden: Boolean(p.hidden || (p as any).is_hidden),
       };
     });
 
@@ -373,6 +379,10 @@ router.put('/:id', requireAdmin, async (req: Request, res: Response): Promise<vo
       if (body.category !== undefined) updates.category = body.category;
       if (body.badge !== undefined) updates.badge = body.badge;
       if (body.featured !== undefined) updates.is_featured = Boolean(body.featured);
+      if (body.hidden !== undefined) {
+        updates.is_active = !body.hidden;
+        updates.is_hidden = Boolean(body.hidden);
+      }
       if (body.description !== undefined) updates.description = body.description;
       if (body.shortDescription !== undefined) updates.short_description = body.shortDescription;
       if (body.image !== undefined) updates.image = body.image;
@@ -405,6 +415,7 @@ router.put('/:id', requireAdmin, async (req: Request, res: Response): Promise<vo
           stockQuantity: data.stock_quantity,
           price: Number(data.price),
           name: data.name,
+          hidden: data.is_hidden === true || data.is_active === false,
         };
       }
 

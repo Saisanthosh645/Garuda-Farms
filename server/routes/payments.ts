@@ -5,6 +5,7 @@ import { getSupabase } from '../db/supabase';
 import { calculateServerDeliveryFee } from '../utils/distance';
 import { syncOrderToGoogleSheets } from '../utils/googleSheets';
 import { sendOrderNotification } from '../utils/smsWhatsapp';
+import { notifyOwnerOnNewOrder } from '../utils/ownerAlerts';
 
 const router = Router();
 
@@ -546,6 +547,11 @@ export async function handleVerifyPayment(req: Request, res: Response): Promise<
       customerName: orderRecord.customer_name,
     }).catch((err) => console.warn('[Notification Error]', err));
 
+    // Trigger Farm Owner Notification (Email & Telegram)
+    notifyOwnerOnNewOrder({ ...orderRecord, items: calc.validatedItems }).catch((err) =>
+      console.warn('[Owner Notification Error]', err)
+    );
+
     res.status(200).json({
       ok: true,
       verified: true,
@@ -688,6 +694,11 @@ export async function handleCreateCodOrder(req: Request, res: Response): Promise
       totalAmount: calc.total,
       customerName: orderRecord.customer_name,
     }).catch((err) => console.warn('[Notification Error]', err));
+
+    // Trigger Farm Owner Notification (Email & Telegram)
+    notifyOwnerOnNewOrder({ ...orderRecord, items: calc.validatedItems }).catch((err) =>
+      console.warn('[Owner Notification Error]', err)
+    );
 
     res.status(200).json({
       ok: true,

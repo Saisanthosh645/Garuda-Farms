@@ -8,7 +8,7 @@ import SproutLoader from '../../components/SproutLoader';
 import { InvoiceModal } from '../../components/InvoiceModal';
 import {
   LayoutDashboard, Package, Layers, ShoppingBag, Users, Tag, Home, Settings,
-  LogOut, RefreshCw, Plus, Edit2, Trash2, Eye, Search, Filter, Check, X,
+  LogOut, RefreshCw, Plus, Edit2, Trash2, Eye, EyeOff, Search, Filter, Check, X,
   AlertCircle, CheckCircle2, Upload, Image, ToggleLeft, ToggleRight,
   ChevronDown, ChevronUp, ArrowLeft, IndianRupee, TrendingUp, Clock,
   Truck, Star, Shield, Activity, BarChart3, Bell, Save, RotateCcw,
@@ -416,6 +416,7 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterAvail, setFilterAvail] = useState<'all' | 'available' | 'unavailable'>('all');
+  const [filterHidden, setFilterHidden] = useState<'all' | 'visible' | 'hidden'>('all');
   const [filterFeatured, setFilterFeatured] = useState(false);
   const [editProduct, setEditProduct] = useState<any | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -429,7 +430,7 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
     name: '', category: 'Eggs', price: '', originalPrice: '', description: '',
     image: '', badge: '', farmOrigin: 'Garuda Sanctuary, Chevella',
     availableWeights: 'Standard Pack', defaultWeight: 'Standard Pack',
-    stock: true, stockType: 'unlimited', stockQuantity: '25', featured: false, isActive: true,
+    stock: true, stockType: 'unlimited', stockQuantity: '25', featured: false, hidden: false, isActive: true,
   };
   const [form, setForm] = useState({ ...emptyForm });
 
@@ -445,8 +446,9 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
   const filtered = products.filter((p) => {
     const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.category.toLowerCase().includes(search.toLowerCase());
     const matchAvail = filterAvail === 'all' || (filterAvail === 'available' ? p.stock : !p.stock);
+    const matchHidden = filterHidden === 'all' || (filterHidden === 'visible' ? !p.hidden : p.hidden);
     const matchFeat = !filterFeatured || p.featured;
-    return matchSearch && matchAvail && matchFeat;
+    return matchSearch && matchAvail && matchHidden && matchFeat;
   });
 
   const handleImageUpload = async (file: File, isEdit = false) => {
@@ -544,6 +546,18 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
     else toast.show('error', res.error || 'Toggle failed');
   };
 
+  const handleToggleVisibility = async (product: any) => {
+    const newHiddenState = !product.hidden;
+    const res = await api.updateProduct(product.id, { hidden: newHiddenState });
+    if (res.ok) {
+      toast.show('success', `${product.name} is now ${newHiddenState ? 'HIDDEN from website (Disappeared)' : 'VISIBLE on website'}`);
+      notifyProductsUpdated();
+      load();
+    } else {
+      toast.show('error', res.error || 'Visibility update failed');
+    }
+  };
+
   const handleToggleFeatured = async (product: any) => {
     const res = await api.updateProduct(product.id, { featured: !product.featured });
     if (res.ok) {
@@ -577,6 +591,12 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
           <option value="all">All Availability</option>
           <option value="available">Available</option>
           <option value="unavailable">Unavailable</option>
+        </select>
+        <select value={filterHidden} onChange={(e) => setFilterHidden(e.target.value as any)}
+          className="px-3 py-2 rounded-xl border border-stone-200 text-sm font-medium focus:outline-none focus:border-[#2D6A4F]">
+          <option value="all">All Visibility</option>
+          <option value="visible">👁️ Visible Only</option>
+          <option value="hidden">🙈 Hidden Only</option>
         </select>
         <button onClick={() => setFilterFeatured(!filterFeatured)}
           className={`px-3 py-2 rounded-xl border text-sm font-medium transition-colors ${filterFeatured ? 'bg-amber-50 border-amber-300 text-amber-700' : 'border-stone-200 text-stone-600 hover:bg-stone-50'}`}>
@@ -696,10 +716,14 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
                   )}
                 </div>
 
-                <div className="flex items-center gap-4 pt-1">
+                <div className="flex flex-wrap items-center gap-4 pt-1">
                   <label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
                     <input type="checkbox" checked={form.stock} onChange={(e) => setForm({ ...form, stock: e.target.checked })} className="w-4 h-4 accent-[#2D6A4F]" />
-                    Is Active / Enabled
+                    Is In Stock
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200">
+                    <input type="checkbox" checked={form.hidden} onChange={(e) => setForm({ ...form, hidden: e.target.checked })} className="w-4 h-4 accent-rose-600" />
+                    🙈 Hide from Website (Disappear)
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
                     <input type="checkbox" checked={form.featured} onChange={(e) => setForm({ ...form, featured: e.target.checked })} className="w-4 h-4 accent-amber-500" />
@@ -867,7 +891,8 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
                   <th className="p-3">Category</th>
                   <th className="p-3">Price</th>
                   <th className="p-3 text-center">Stock Level</th>
-                  <th className="p-3 text-center">Status</th>
+                  <th className="p-3 text-center">Store Visibility</th>
+                  <th className="p-3 text-center">Stock Toggle</th>
                   <th className="p-3 text-center">Featured</th>
                   <th className="p-3 text-right pr-4">Actions</th>
                 </tr>
@@ -917,6 +942,21 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-red-100 text-red-700 text-xs font-bold border border-red-200">
                             ❌ Out of Stock
                           </span>
+                        )}
+                      </td>
+                      <td className="p-3 text-center">
+                        {p.hidden ? (
+                          <button onClick={() => handleToggleVisibility(p)} title="Currently HIDDEN from website. Click to show on storefront."
+                            className="px-2.5 py-1 rounded-xl bg-rose-50 text-rose-700 text-xs font-bold border border-rose-200 inline-flex items-center gap-1.5 hover:bg-rose-100 transition-all shadow-sm">
+                            <EyeOff className="w-3.5 h-3.5 text-rose-600" />
+                            <span>🙈 Hidden</span>
+                          </button>
+                        ) : (
+                          <button onClick={() => handleToggleVisibility(p)} title="Currently VISIBLE on website. Click to disappear/hide from storefront."
+                            className="px-2.5 py-1 rounded-xl bg-emerald-50 text-emerald-800 text-xs font-bold border border-emerald-200 inline-flex items-center gap-1.5 hover:bg-emerald-100 transition-all shadow-sm">
+                            <Eye className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>👁️ Visible</span>
+                          </button>
                         )}
                       </td>
                       <td className="p-3 text-center">

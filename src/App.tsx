@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { BenefitsSection } from './components/BenefitsSection';
@@ -85,10 +85,10 @@ export default function App() {
     };
   }, []);
   // Auto-clean cart whenever liveProducts changes:
-  // Remove items whose product is now unavailable (admin turned it off)
+  // Remove items whose product is now unavailable or hidden by admin
   useEffect(() => {
     if (!liveProducts || liveProducts.length === 0) return;
-    const availableIds = new Set(liveProducts.map((p) => p.id));
+    const availableIds = new Set(liveProducts.filter((p) => !p.hidden).map((p) => p.id));
     setCart((prev) => {
       const cleaned = prev.filter((item) => availableIds.has(item.product.id));
       if (cleaned.length < prev.length) {
@@ -97,13 +97,18 @@ export default function App() {
           .map((item) => item.product.name)
           .join(', ');
         // Show a dismissible banner via console (toast shown separately below)
-        console.warn(`[Cart] Removed unavailable items: ${removedNames}`);
+        console.warn(`[Cart] Removed unavailable/hidden items: ${removedNames}`);
         // Trigger a visible notification in the UI
         setRemovedFromCartNotice(removedNames);
         setTimeout(() => setRemovedFromCartNotice(null), 6000);
       }
       return cleaned;
     });
+  }, [liveProducts]);
+
+  // Filter products for storefront consumers (hides products marked as hidden/disappeared by admin)
+  const visibleStoreProducts = useMemo(() => {
+    return liveProducts.filter((p) => !p.hidden);
   }, [liveProducts]);
 
   // Sync wishlist from database whenever user logs in
@@ -162,15 +167,70 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
-  // Cart & Wishlist state with localStorage persistence
+  // Helper: get localStorage key for a specific user's cart or guest cart
+  const getCartKey = (userId?: string | null) =>
+    userId ? `garuda_cart_${userId}` : 'garuda_cart_guest';
+
+  // Per-user cart state: each user (and guest) has their own separate cart stored in localStorage
   const [cart, setCart] = useState<CartItem[]>(() => {
     try {
-      const saved = localStorage.getItem('garuda_cart');
+      const lastUserId = localStorage.getItem('garuda_cart_active_user');
+      const saved = localStorage.getItem(getCartKey(lastUserId));
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
     }
   });
+
+  // Keep a ref to the latest cart array to avoid stale closures in auth transition effects
+  const cartRef = React.useRef<CartItem[]>(cart);
+  cartRef.current = cart;
+
+  // Track the active user ID across auth state changes
+  const prevUserIdRef = React.useRef<string | null | undefined>(undefined);
+
+  // When auth user changes: save outgoing user's cart, load incoming user's cart (or guest cart)
+  useEffect(() => {
+    if (auth.loading) return;
+
+    const currentUserId = auth.user?.id ?? null;
+    const prevUserId = prevUserIdRef.current;
+
+    // Initial mount after auth finishes loading
+    if (prevUserId === undefined) {
+      prevUserIdRef.current = currentUserId;
+      try {
+        const saved = localStorage.getItem(getCartKey(currentUserId));
+        if (saved) setCart(JSON.parse(saved));
+      } catch { }
+      return;
+    }
+
+    // If user changed (login, logout, or user switch)
+    if (currentUserId !== prevUserId) {
+      // 1. Save outgoing user's cart using latest ref
+      try {
+        localStorage.setItem(getCartKey(prevUserId), JSON.stringify(cartRef.current));
+      } catch (e) { }
+
+      // 2. Load incoming user's cart (or guest cart)
+      try {
+        const saved = localStorage.getItem(getCartKey(currentUserId));
+        setCart(saved ? JSON.parse(saved) : []);
+      } catch {
+        setCart([]);
+      }
+
+      // 3. Update active user pointer
+      if (currentUserId) {
+        localStorage.setItem('garuda_cart_active_user', currentUserId);
+      } else {
+        localStorage.removeItem('garuda_cart_active_user');
+      }
+
+      prevUserIdRef.current = currentUserId;
+    }
+  }, [auth.loading, auth.user?.id]);
 
   const [wishlistIds, setWishlistIds] = useState<number[]>(() => {
     try {
@@ -210,14 +270,16 @@ export default function App() {
   const [appliedDiscount, setAppliedDiscount] = useState(0);
   const [appliedCoupon, setAppliedCoupon] = useState('');
 
-  // Persist cart to localStorage
+  // Persist cart to localStorage under current user's key (or guest key)
   useEffect(() => {
+    if (auth.loading) return;
+    const key = getCartKey(auth.user?.id);
     try {
-      localStorage.setItem('garuda_cart', JSON.stringify(cart));
+      localStorage.setItem(key, JSON.stringify(cart));
     } catch (e) {
       console.error(e);
     }
-  }, [cart]);
+  }, [cart, auth.loading, auth.user?.id]);
 
   // Persist wishlist to localStorage
   useEffect(() => {
@@ -363,7 +425,8 @@ export default function App() {
     setWishlistIds((prev) => prev.filter((id) => id !== product.id));
   };
 
-  const wishlistProducts = liveProducts.filter((p) => wishlistIds.includes(p.id));
+  // Filter wishlist products from visible products
+  const wishlistProducts = visibleStoreProducts.filter((p) => wishlistIds.includes(p.id));
   const totalCartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   const runAuthIntent = () => {
@@ -471,7 +534,7 @@ export default function App() {
 
             {/* Curated Harvest Showcase with Direct "Buy Now" Links */}
             <HorizontalProductShowcase
-              products={liveProducts}
+              products={visibleStoreProducts}
               onQuickView={(p) => setQuickViewProduct(p)}
               onAddToCart={(p, w) => handleAddToCart(p, w)}
               onExploreAll={() => navigateToView('products')}
@@ -479,14 +542,14 @@ export default function App() {
 
             {/* 3D Farm Fresh Egg Spotlight Showcase with Interactive 3D Canvas */}
             <FeaturedSpotlight
-              products={liveProducts}
+              products={visibleStoreProducts}
               onAddToCart={(p, w) => handleAddToCart(p, w)}
               onQuickView={(p) => setQuickViewProduct(p)}
             />
 
             {/* Dynamic Offers & Daily Deals Section */}
             <DynamicOffersSection
-              products={liveProducts}
+              products={visibleStoreProducts}
               onSelectProduct={(p) => setQuickViewProduct(p)}
               onAddToCart={(p, w, q) => handleAddToCart(p, w, q)}
               onToggleWishlist={handleToggleWishlist}
@@ -518,7 +581,7 @@ export default function App() {
 
         {activeView === 'products' && (
           <ProductCatalog
-            initialProducts={liveProducts}
+            initialProducts={visibleStoreProducts}
             wishlistIds={wishlistIds}
             initialCategory={selectedStoreCategory}
             onToggleWishlist={handleToggleWishlist}
@@ -734,7 +797,7 @@ export default function App() {
       <SearchModal
         isOpen={isSearchOpen}
         onClose={() => setIsSearchOpen(false)}
-        products={liveProducts}
+        products={visibleStoreProducts}
         onSelectProduct={(p) => setQuickViewProduct(p)}
       />
 
