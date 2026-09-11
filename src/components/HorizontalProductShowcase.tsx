@@ -1,7 +1,6 @@
 import React, { useRef } from 'react';
 import { motion } from 'motion/react';
 import { ChevronLeft, ChevronRight, Sparkles, ArrowRight } from 'lucide-react';
-import { PRODUCTS } from '../data/products';
 import { Product } from '../types';
 
 interface HorizontalProductShowcaseProps {
@@ -19,8 +18,8 @@ export const HorizontalProductShowcase: React.FC<HorizontalProductShowcaseProps>
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Use live API products; fall back to static seed data only if API hasn't loaded yet
-  const sourceProducts = Array.isArray(products) ? products : PRODUCTS;
+  // Use live API products from App.tsx — never fall back to static data
+  const sourceProducts = Array.isArray(products) ? products : [];
 
   // Pick top signature items: featured flag first, then known showcase IDs
   const featuredShowcase = sourceProducts.filter(

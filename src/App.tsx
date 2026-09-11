@@ -53,13 +53,18 @@ export default function App() {
   const auth = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   // Live products from API — single source of truth for the entire storefront
-  const [liveProducts, setLiveProducts] = useState<Product[]>(PRODUCTS);
+  // null = API not yet loaded (don't show anything yet)
+  const [liveProducts, setLiveProducts] = useState<Product[] | null>(null);
+  const [apiLoaded, setApiLoaded] = useState(false);
 
   // Fetch fresh products from the backend (bypasses browser cache via no-store header)
   const refreshProducts = async () => {
     try {
       const data = await api.getProducts();
-      if (Array.isArray(data)) setLiveProducts(data);
+      if (Array.isArray(data)) {
+        setLiveProducts(data);
+        setApiLoaded(true);
+      }
     } catch {
       // Keep current products if fetch fails
     }
@@ -107,9 +112,11 @@ export default function App() {
   }, [liveProducts]);
 
   // Filter products for storefront consumers (hides products marked as hidden/disappeared by admin)
+  // If API hasn't loaded yet, return empty array so nothing flickers before we know the real state
   const visibleStoreProducts = useMemo(() => {
+    if (!apiLoaded || !liveProducts) return [];
     return liveProducts.filter((p) => !p.hidden);
-  }, [liveProducts]);
+  }, [liveProducts, apiLoaded]);
 
   // Sync wishlist from database whenever user logs in
   useEffect(() => {

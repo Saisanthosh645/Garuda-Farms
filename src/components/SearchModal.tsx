@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, X, ArrowRight, Sparkles } from 'lucide-react';
-import { PRODUCTS, CATEGORIES } from '../data/products';
+import { CATEGORIES } from '../data/products';
 import { Product } from '../types';
 
 interface SearchModalProps {
@@ -21,7 +21,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   const [selectedCat, setSelectedCat] = useState<string>('All');
 
   const sourceProducts = useMemo(() => {
-    const list = Array.isArray(products) ? products : PRODUCTS;
+    const list = Array.isArray(products) ? products : [];
     return list.filter((p) => !p.hidden);
   }, [products]);
 

@@ -128,8 +128,10 @@ export const api = {
       const res = await fetch(`/api/products?${searchParams.toString()}`);
       if (!res.ok) throw new Error('API request failed');
       const data = await res.json();
-      return data.products || PRODUCTS;
+      // Return API data (even if empty — empty means admin hid all products)
+      return Array.isArray(data.products) ? data.products : PRODUCTS;
     } catch {
+      // Only use static fallback on genuine network failure
       return PRODUCTS;
     }
   },

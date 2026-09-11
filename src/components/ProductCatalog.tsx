@@ -1,10 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Search, SlidersHorizontal, Sparkles, X, Check, ShoppingBag, ArrowRight } from 'lucide-react';
-import { PRODUCTS, CATEGORIES } from '../data/products';
+import { CATEGORIES } from '../data/products';
 import { Product, ProductCategory } from '../types';
 import { ProductCard } from './ProductCard';
-import { api } from '../lib/api';
 import { MugguDivider, ClayArtMotif } from './MugguCurves';
 
 interface ProductCatalogProps {
@@ -28,9 +27,9 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
   onViewCart,
   cartCount = 0,
 }) => {
-  // Start with live API products if provided, fall back to static seed data
+  // Start with live API products passed from App.tsx (the single source of truth)
   const [catalogProducts, setCatalogProducts] = useState<Product[]>(
-    Array.isArray(initialProducts) ? initialProducts : PRODUCTS
+    Array.isArray(initialProducts) ? initialProducts : []
   );
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory | 'All'>(initialCategory);
   const [searchQuery, setSearchQuery] = useState('');
@@ -38,20 +37,11 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
   const [organicOnly, setOrganicOnly] = useState(false);
 
   useEffect(() => {
-    // Re-sync when initialProducts prop changes (e.g. after admin changes and returns to store)
+    // Re-sync when initialProducts prop changes (e.g. after admin hides/shows products)
     if (Array.isArray(initialProducts)) {
       setCatalogProducts(initialProducts);
     }
   }, [initialProducts]);
-
-  useEffect(() => {
-    // Also always do a fresh fetch from API to catch any changes
-    api.getProducts()
-      .then((data) => {
-        if (Array.isArray(data)) setCatalogProducts(data);
-      })
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (initialCategory) {

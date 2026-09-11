@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Star, ShieldCheck, Sparkles, Check, ShoppingBag, ArrowRight } from 'lucide-react';
 import { EggSpotlightCanvas } from './3d/EggSpotlightCanvas';
-import { PRODUCTS } from '../data/products';
 import { Product } from '../types';
 
 interface FeaturedSpotlightProps {
@@ -16,8 +15,8 @@ export const FeaturedSpotlight: React.FC<FeaturedSpotlightProps> = ({
   onQuickView,
   products,
 }) => {
-  // Use live API product for eggs (ID=1), fall back to static data
-  const sourceProducts = Array.isArray(products) ? products : PRODUCTS;
+  // Use live API products from App.tsx — never fall back to static data
+  const sourceProducts = Array.isArray(products) ? products : [];
   const eggProduct = sourceProducts.find((p) => (p.id === 1 || p.name.includes('Egg')) && !p.hidden) || sourceProducts.find((p) => !p.hidden);
 
   if (!eggProduct || eggProduct.hidden) return null;

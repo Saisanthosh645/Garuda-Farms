@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Flame, Leaf, Star, Tag, ShoppingBag, ArrowRight, ShieldCheck, Heart } from 'lucide-react';
 import { Product } from '../types';
-import { PRODUCTS } from '../data/products';
 
 interface DynamicOffersSectionProps {
   products?: Product[];
@@ -31,7 +30,7 @@ export const DynamicOffersSection: React.FC<DynamicOffersSectionProps> = ({
   ];
 
   const sourceProducts = useMemo(() => {
-    return Array.isArray(products) ? products : PRODUCTS;
+    return Array.isArray(products) ? products : [];
   }, [products]);
 
   const filteredProducts = useMemo(() => {
