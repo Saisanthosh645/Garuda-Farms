@@ -423,6 +423,8 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
   const [saving, setSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<any | null>(null);
+  const [confirmBulkHide, setConfirmBulkHide] = useState<boolean | null>(null);
+  const [bulkUpdating, setBulkUpdating] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const editFileRef = useRef<HTMLInputElement>(null);
 
@@ -574,14 +576,28 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
     else toast.show('error', res.error || 'Archive failed');
   };
 
+  const handleBulkHide = async (hideAll: boolean) => {
+    setBulkUpdating(true);
+    const res = await api.bulkUpdateVisibility(hideAll);
+    setBulkUpdating(false);
+    setConfirmBulkHide(null);
+    if (res.ok) {
+      toast.show('success', hideAll ? 'All products are now HIDDEN from store.' : 'All products are now VISIBLE on store.');
+      notifyProductsUpdated();
+      load();
+    } else {
+      toast.show('error', res.error || 'Bulk visibility update failed');
+    }
+  };
+
   const CATEGORIES_LIST = ['Eggs', 'Meat', 'Chicken', 'Mushroom', 'Honey', 'Dairy', 'Vegetables', 'Fruits', 'Rice', 'Grains',
     'Fresh A2 Milk & Dairy', 'Traditional Artisanal Ghee', 'Cold-Pressed Oils', 'Natural Sweeteners', 'Organic Pulses & Grains', 'Artisanal Spices'];
 
   return (
     <div className="space-y-4">
       {/* Controls */}
-      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products..."
             className="w-full pl-9 pr-3 py-2 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-[#2D6A4F]" />
@@ -602,11 +618,63 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
           className={`px-3 py-2 rounded-xl border text-sm font-medium transition-colors ${filterFeatured ? 'bg-amber-50 border-amber-300 text-amber-700' : 'border-stone-200 text-stone-600 hover:bg-stone-50'}`}>
           ⭐ Featured Only
         </button>
-        <button onClick={() => setShowCreate(true)}
-          className="px-4 py-2 rounded-xl bg-[#2D6A4F] hover:bg-[#1B4332] text-white text-sm font-bold flex items-center gap-2 transition-colors">
-          <Plus className="w-4 h-4" /><span>Add Product</span>
-        </button>
+        <div className="flex items-center gap-2 ml-auto">
+          <button onClick={() => setConfirmBulkHide(true)}
+            title="Hide all products from website storefront"
+            className="px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-sm font-semibold flex items-center gap-1.5 transition-colors">
+            <EyeOff className="w-4 h-4 text-rose-600" /><span>Hide All</span>
+          </button>
+          <button onClick={() => setConfirmBulkHide(false)}
+            title="Show all products on website storefront"
+            className="px-3 py-2 rounded-xl border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-sm font-semibold flex items-center gap-1.5 transition-colors">
+            <Eye className="w-4 h-4 text-emerald-600" /><span>Show All</span>
+          </button>
+          <button onClick={() => setShowCreate(true)}
+            className="px-4 py-2 rounded-xl bg-[#2D6A4F] hover:bg-[#1B4332] text-white text-sm font-bold flex items-center gap-2 transition-colors">
+            <Plus className="w-4 h-4" /><span>Add Product</span>
+          </button>
+        </div>
       </div>
+
+      {/* Confirm Bulk Visibility Modal */}
+      {confirmBulkHide !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className={`p-3 rounded-full ${confirmBulkHide ? 'bg-rose-100 text-rose-600' : 'bg-emerald-100 text-emerald-600'}`}>
+                {confirmBulkHide ? <EyeOff className="w-6 h-6" /> : <Eye className="w-6 h-6" />}
+              </div>
+              <div>
+                <h3 className="font-bold text-stone-900 text-lg">
+                  {confirmBulkHide ? 'Hide All Products?' : 'Show All Products?'}
+                </h3>
+                <p className="text-xs text-stone-500">Bulk Storefront Visibility</p>
+              </div>
+            </div>
+            <p className="text-sm text-stone-600">
+              {confirmBulkHide
+                ? `Are you sure you want to HIDE all ${products.length} products from the store? Customers will not see any products until you reveal them.`
+                : `Are you sure you want to SHOW all ${products.length} products on the store? All products will become visible to customers.`}
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => setConfirmBulkHide(null)}
+                disabled={bulkUpdating}
+                className="px-4 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 rounded-xl transition-colors">
+                Cancel
+              </button>
+              <button
+                onClick={() => handleBulkHide(confirmBulkHide)}
+                disabled={bulkUpdating}
+                className={`px-4 py-2 text-sm font-bold text-white rounded-xl flex items-center gap-2 transition-colors ${
+                  confirmBulkHide ? 'bg-rose-600 hover:bg-rose-700' : 'bg-[#2D6A4F] hover:bg-[#1B4332]'
+                }`}>
+                {bulkUpdating ? 'Updating...' : confirmBulkHide ? 'Yes, Hide All Products' : 'Yes, Show All Products'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Create Product Modal */}
       {showCreate && (

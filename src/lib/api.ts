@@ -469,6 +469,27 @@ export const api = {
     }
   },
 
+  async bulkUpdateVisibility(hidden: boolean): Promise<{ ok: boolean; message?: string; error?: string }> {
+    const headers = await getAuthHeader();
+    try {
+      const res = await fetch('/api/products/bulk-visibility', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ hidden }),
+      });
+      const data = await res.json();
+      if (data.ok && typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('garuda_products_updated'));
+        try {
+          localStorage.setItem('garuda_products_sync', Date.now().toString());
+        } catch {}
+      }
+      return data;
+    } catch (err: any) {
+      return { ok: false, error: err.message };
+    }
+  },
+
   async createProduct(payload: any): Promise<{ ok: boolean; product?: any; error?: string }> {
     const headers = await getAuthHeader();
     try {

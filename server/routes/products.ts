@@ -252,6 +252,43 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+// POST /api/products/bulk-visibility (Admin Only)
+router.post('/bulk-visibility', requireAdmin, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { hidden } = req.body;
+    const isHidden = Boolean(hidden);
+    const client = getSupabase();
+
+    if (client) {
+      const { error } = await client
+        .from('products')
+        .update({
+          is_active: !isHidden,
+          updated_at: new Date().toISOString(),
+        })
+        .neq('id', 0);
+
+      if (error) {
+        res.status(400).json({ ok: false, error: error.message });
+        return;
+      }
+    }
+
+    localProducts.forEach((p) => {
+      (p as any).hidden = isHidden;
+      (p as any).is_active = !isHidden;
+    });
+
+    await auditLog(req.user.email, 'product.bulk_visibility', 'products', 'all', { hidden: isHidden });
+    res.json({
+      ok: true,
+      message: isHidden ? 'All products are now hidden from the store.' : 'All products are now visible in the store.',
+    });
+  } catch (err: any) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // POST /api/products (Admin Only)
 router.post('/', requireAdmin, async (req: Request, res: Response): Promise<void> => {
   try {
