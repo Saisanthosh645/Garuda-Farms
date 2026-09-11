@@ -31,11 +31,12 @@ export const DynamicOffersSection: React.FC<DynamicOffersSectionProps> = ({
   ];
 
   const sourceProducts = useMemo(() => {
-    return products && products.length > 0 ? products : PRODUCTS;
+    return Array.isArray(products) ? products : PRODUCTS;
   }, [products]);
 
   const filteredProducts = useMemo(() => {
     return sourceProducts.filter((p) => {
+      if (p.hidden) return false;
       if (activeTab === 'todays_deals') return p.badge?.includes('OFF') || p.price < p.originalPrice || (p as any).is_todays_deal;
       if (activeTab === 'fresh_arrivals') return p.tags?.includes('Fresh') || p.tags?.includes('Organic') || (p as any).is_fresh_arrival;
       if (activeTab === 'best_sellers') return p.featured || p.rating >= 4.8 || (p as any).is_best_seller;
@@ -43,6 +44,8 @@ export const DynamicOffersSection: React.FC<DynamicOffersSectionProps> = ({
       return true;
     }).slice(0, 6);
   }, [activeTab, sourceProducts]);
+
+  if (sourceProducts.filter(p => !p.hidden).length === 0) return null;
 
   return (
     <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-[#FAF8F2] via-white to-[#FAF8F2] border-y border-[#EFE8DC]">

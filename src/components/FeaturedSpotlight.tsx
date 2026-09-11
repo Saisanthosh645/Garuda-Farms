@@ -17,8 +17,11 @@ export const FeaturedSpotlight: React.FC<FeaturedSpotlightProps> = ({
   products,
 }) => {
   // Use live API product for eggs (ID=1), fall back to static data
-  const sourceProducts = products && products.length > 0 ? products : PRODUCTS;
-  const eggProduct = sourceProducts.find((p) => p.id === 1) || sourceProducts[0];
+  const sourceProducts = Array.isArray(products) ? products : PRODUCTS;
+  const eggProduct = sourceProducts.find((p) => (p.id === 1 || p.name.includes('Egg')) && !p.hidden) || sourceProducts.find((p) => !p.hidden);
+
+  if (!eggProduct || eggProduct.hidden) return null;
+
   const [selectedPack, setSelectedPack] = useState(eggProduct?.defaultWeight || '12 Eggs');
   const [isAdded, setIsAdded] = useState(false);
 

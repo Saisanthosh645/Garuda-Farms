@@ -21,7 +21,8 @@ export const SearchModal: React.FC<SearchModalProps> = ({
   const [selectedCat, setSelectedCat] = useState<string>('All');
 
   const sourceProducts = useMemo(() => {
-    return products && products.length > 0 ? products : PRODUCTS;
+    const list = Array.isArray(products) ? products : PRODUCTS;
+    return list.filter((p) => !p.hidden);
   }, [products]);
 
   const results = useMemo(() => {

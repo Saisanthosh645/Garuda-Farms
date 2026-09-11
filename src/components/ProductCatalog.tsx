@@ -30,7 +30,7 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
 }) => {
   // Start with live API products if provided, fall back to static seed data
   const [catalogProducts, setCatalogProducts] = useState<Product[]>(
-    initialProducts && initialProducts.length > 0 ? initialProducts : PRODUCTS
+    Array.isArray(initialProducts) ? initialProducts : PRODUCTS
   );
   const [selectedCategory, setSelectedCategory] = useState<ProductCategory | 'All'>(initialCategory);
   const [searchQuery, setSearchQuery] = useState('');
@@ -39,7 +39,7 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
 
   useEffect(() => {
     // Re-sync when initialProducts prop changes (e.g. after admin changes and returns to store)
-    if (initialProducts && initialProducts.length > 0) {
+    if (Array.isArray(initialProducts)) {
       setCatalogProducts(initialProducts);
     }
   }, [initialProducts]);
@@ -48,7 +48,7 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
     // Also always do a fresh fetch from API to catch any changes
     api.getProducts()
       .then((data) => {
-        if (data && data.length > 0) setCatalogProducts(data);
+        if (Array.isArray(data)) setCatalogProducts(data);
       })
       .catch(() => {});
   }, []);

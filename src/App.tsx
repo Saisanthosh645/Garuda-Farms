@@ -59,7 +59,7 @@ export default function App() {
   const refreshProducts = async () => {
     try {
       const data = await api.getProducts();
-      if (data && data.length > 0) setLiveProducts(data);
+      if (Array.isArray(data)) setLiveProducts(data);
     } catch {
       // Keep current products if fetch fails
     }
@@ -87,7 +87,7 @@ export default function App() {
   // Auto-clean cart whenever liveProducts changes:
   // Remove items whose product is now unavailable or hidden by admin
   useEffect(() => {
-    if (!liveProducts || liveProducts.length === 0) return;
+    if (!liveProducts) return;
     const availableIds = new Set(liveProducts.filter((p) => !p.hidden).map((p) => p.id));
     setCart((prev) => {
       const cleaned = prev.filter((item) => availableIds.has(item.product.id));

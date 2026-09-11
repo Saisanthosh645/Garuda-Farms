@@ -149,7 +149,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({
 
   // Keep passedProducts synced with allProducts
   useEffect(() => {
-    if (passedProducts && passedProducts.length > 0) {
+    if (Array.isArray(passedProducts)) {
       setAllProducts(passedProducts);
     }
   }, [passedProducts]);
@@ -267,7 +267,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({
   // Sync Wishlist products when wishlistIds or allProducts update
   useEffect(() => {
     if (wishlistIds.length > 0 && allProducts.length > 0) {
-      const filtered = allProducts.filter((p) => wishlistIds.includes(p.id));
+      const filtered = allProducts.filter((p) => wishlistIds.includes(p.id) && !p.hidden);
       setWishlistProducts(filtered);
     } else {
       setWishlistProducts([]);

@@ -208,6 +208,10 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
 
       const { data, error } = await query.single();
       if (!error && data) {
+        if (data.is_active === false || data.is_hidden === true) {
+          res.status(404).json({ ok: false, error: 'Product is currently unavailable' });
+          return;
+        }
         res.json({
           ok: true,
           source: 'supabase',
@@ -242,7 +246,7 @@ router.get('/:id', async (req: Request, res: Response): Promise<void> => {
     }
 
     const prod = localProducts.find((p) => String(p.id) === idParam);
-    if (prod) {
+    if (prod && !prod.hidden && (prod as any).is_active !== false) {
       res.json({ ok: true, source: 'local_seeded', product: prod });
     } else {
       res.status(404).json({ ok: false, error: 'Product not found' });

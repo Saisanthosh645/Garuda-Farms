@@ -20,12 +20,14 @@ export const HorizontalProductShowcase: React.FC<HorizontalProductShowcaseProps>
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Use live API products; fall back to static seed data only if API hasn't loaded yet
-  const sourceProducts = products && products.length > 0 ? products : PRODUCTS;
+  const sourceProducts = Array.isArray(products) ? products : PRODUCTS;
 
   // Pick top signature items: featured flag first, then known showcase IDs
   const featuredShowcase = sourceProducts.filter(
-    (p) => p.featured || [1, 6, 11, 19, 23, 27, 31, 34, 39, 43, 47, 49].includes(p.id)
+    (p) => !p.hidden && (p.featured || [1, 6, 11, 19, 23, 27, 31, 34, 39, 43, 47, 49].includes(p.id))
   );
+
+  if (featuredShowcase.length === 0) return null;
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
