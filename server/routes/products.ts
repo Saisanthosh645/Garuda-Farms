@@ -381,7 +381,6 @@ router.put('/:id', requireAdmin, async (req: Request, res: Response): Promise<vo
       if (body.featured !== undefined) updates.is_featured = Boolean(body.featured);
       if (body.hidden !== undefined) {
         updates.is_active = !body.hidden;
-        updates.is_hidden = Boolean(body.hidden);
       }
       if (body.description !== undefined) updates.description = body.description;
       if (body.shortDescription !== undefined) updates.short_description = body.shortDescription;
