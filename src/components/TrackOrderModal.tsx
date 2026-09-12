@@ -5,6 +5,7 @@ import {
   Printer, AlertCircle, RefreshCw, ShoppingBag, ShieldCheck, Check, Sparkles
 } from 'lucide-react';
 import { api } from '../lib/api';
+import { useAuth } from '../auth/AuthProvider';
 
 interface TrackOrderModalProps {
   isOpen: boolean;
@@ -20,6 +21,10 @@ export const TrackOrderModal: React.FC<TrackOrderModalProps> = ({
   initialOrderId = '',
 }) => {
   const effectiveOrderId = initialOrderId || prefilledOrderId;
+  const { user } = useAuth();
+  const getUserOrderKey = () => user?.email
+    ? `garuda_orders_${user.email.toLowerCase().replace(/[^a-z0-9]/g, '_')}`
+    : null;
   const [searchQuery, setSearchQuery] = useState(effectiveOrderId);
   const [loading, setLoading] = useState(false);
   const [matchedOrder, setMatchedOrder] = useState<any | null>(null);
@@ -30,17 +35,21 @@ export const TrackOrderModal: React.FC<TrackOrderModalProps> = ({
 
   const timerRef = useRef<any>(null);
 
-  // Load recent orders from localStorage for quick suggestions
+  // Load recent orders from localStorage for quick suggestions (user-scoped)
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('garuda_placed_orders');
-      if (saved) {
-        setRecentOrders(JSON.parse(saved));
+      const key = getUserOrderKey();
+      if (key) {
+        const saved = localStorage.getItem(key);
+        if (saved) setRecentOrders(JSON.parse(saved));
+        else setRecentOrders([]);
+      } else {
+        setRecentOrders([]);
       }
     } catch (e) {
       console.error(e);
     }
-  }, [isOpen]);
+  }, [isOpen, user?.id]);
 
   // Execute tracking query against real DB endpoint
   const executeTrack = async (queryToUse: string, isSilent = false) => {
@@ -73,14 +82,17 @@ export const TrackOrderModal: React.FC<TrackOrderModalProps> = ({
         executeTrack(effectiveOrderId);
       } else {
         try {
-          const saved = localStorage.getItem('garuda_placed_orders');
-          if (saved) {
-            const parsed = JSON.parse(saved);
-            if (parsed && parsed.length > 0) {
-              const topId = parsed[0].orderId || parsed[0].id;
-              if (topId) {
-                setSearchQuery(topId);
-                executeTrack(topId);
+          const key = getUserOrderKey();
+          if (key) {
+            const saved = localStorage.getItem(key);
+            if (saved) {
+              const parsed = JSON.parse(saved);
+              if (parsed && parsed.length > 0) {
+                const topId = parsed[0].orderId || parsed[0].id;
+                if (topId) {
+                  setSearchQuery(topId);
+                  executeTrack(topId);
+                }
               }
             }
           }

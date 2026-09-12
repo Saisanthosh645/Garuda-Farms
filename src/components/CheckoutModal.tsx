@@ -297,11 +297,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   const deliveryFee = deliveryError || items.length === 0 ? 0 : deliveryInfo.finalFee;
   const total = Math.max(1, subtotal + deliveryFee - discountAmount);
 
-  // Save placed order helper
+  // Save placed order helper — scoped per user email to prevent cross-account bleed
   const saveOrderToStorage = (order: OrderDetails) => {
     try {
-      const existing = JSON.parse(localStorage.getItem('garuda_placed_orders') || '[]');
-      localStorage.setItem('garuda_placed_orders', JSON.stringify([order, ...existing]));
+      const userKey = authUser?.email
+        ? `garuda_orders_${authUser.email.toLowerCase().replace(/[^a-z0-9]/g, '_')}`
+        : 'garuda_orders_guest';
+      const existing = JSON.parse(localStorage.getItem(userKey) || '[]');
+      localStorage.setItem(userKey, JSON.stringify([order, ...existing]));
     } catch (e) {
       console.error('Failed to cache order to localStorage:', e);
     }

@@ -33,15 +33,21 @@ interface OrderRecord {
   items?: OrderItemDetail[];
 }
 
-const mergeLocalOrders = (serverOrders: OrderRecord[]): OrderRecord[] => {
+const mergeLocalOrders = (serverOrders: OrderRecord[], currentUserEmail?: string): OrderRecord[] => {
   try {
-    const cached = JSON.parse(localStorage.getItem('garuda_placed_orders') || '[]');
+    const userKey = currentUserEmail
+      ? `garuda_orders_${currentUserEmail.toLowerCase().replace(/[^a-z0-9]/g, '_')}`
+      : null;
+    const cached = userKey
+      ? JSON.parse(localStorage.getItem(userKey) || '[]')
+      : [];
     if (!Array.isArray(cached) || cached.length === 0) return serverOrders;
     const serverMap = new Set(serverOrders.map((o) => String(o.id)));
     const merged = [...serverOrders];
     cached.forEach((loc: any) => {
       const id = String(loc.orderId || loc.id || '');
-      if (id && !serverMap.has(id)) {
+      const locEmail = (loc.email || '').toLowerCase();
+      if (id && !serverMap.has(id) && (!locEmail || !currentUserEmail || locEmail === currentUserEmail.toLowerCase())) {
         merged.push({
           id,
           customer_name: loc.customerName,
@@ -79,7 +85,7 @@ const mergeLocalOrders = (serverOrders: OrderRecord[]): OrderRecord[] => {
 
 export const OrdersPage: React.FC = () => {
   const { session, user } = useAuth();
-  const [orders, setOrders] = useState<OrderRecord[]>(() => mergeLocalOrders([]));
+  const [orders, setOrders] = useState<OrderRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -93,7 +99,7 @@ export const OrdersPage: React.FC = () => {
       });
       if (res.ok) {
         const data = await res.json();
-        setOrders(mergeLocalOrders(data.orders || []));
+        setOrders(mergeLocalOrders(data.orders || [], user?.email));
       } else {
         setError('Failed to load your orders.');
       }
@@ -104,6 +110,11 @@ export const OrdersPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+  // Clear orders immediately when user switches to prevent cross-account bleed
+  useEffect(() => {
+    setOrders([]);
+  }, [user?.id]);
 
   useEffect(() => {
     fetchOrders();

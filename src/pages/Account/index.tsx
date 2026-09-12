@@ -69,15 +69,23 @@ export const AccountPage: React.FC<AccountPageProps> = ({
   const { user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState(initialTab);
 
-const mergeLocalOrders = (serverOrders: any[]): any[] => {
+const mergeLocalOrders = (serverOrders: any[], currentUserEmail?: string): any[] => {
   try {
-    const cached = JSON.parse(localStorage.getItem('garuda_placed_orders') || '[]');
+    // Use per-user scoped key to prevent cross-account order bleed
+    const userKey = currentUserEmail
+      ? `garuda_orders_${currentUserEmail.toLowerCase().replace(/[^a-z0-9]/g, '_')}`
+      : null;
+    const cached = userKey
+      ? JSON.parse(localStorage.getItem(userKey) || '[]')
+      : [];
     if (!Array.isArray(cached) || cached.length === 0) return serverOrders;
     const serverMap = new Set(serverOrders.map((o) => String(o.id)));
     const merged = [...serverOrders];
     cached.forEach((loc: any) => {
       const id = String(loc.orderId || loc.id || '');
-      if (id && !serverMap.has(id)) {
+      // Extra safety: only include cached orders belonging to this email
+      const locEmail = (loc.email || '').toLowerCase();
+      if (id && !serverMap.has(id) && (!locEmail || !currentUserEmail || locEmail === currentUserEmail.toLowerCase())) {
         merged.push({
           id,
           customer_name: loc.customerName,
@@ -115,7 +123,7 @@ const mergeLocalOrders = (serverOrders: any[]): any[] => {
 
   // States for DB data
   const [profile, setProfile] = useState<any>(null);
-  const [orders, setOrders] = useState<any[]>(() => mergeLocalOrders([]));
+  const [orders, setOrders] = useState<any[]>([]);
   const [addresses, setAddresses] = useState<any[]>([]);
   const [wishlistIds, setWishlistIds] = useState<number[]>([]);
   const [wishlistProducts, setWishlistProducts] = useState<Product[]>([]);
@@ -233,7 +241,7 @@ const mergeLocalOrders = (serverOrders: any[]): any[] => {
       setLoadingOrders(true);
       try {
         const res = await api.getOrders();
-        if (res.ok && Array.isArray(res.orders)) setOrders(mergeLocalOrders(res.orders));
+        if (res.ok && Array.isArray(res.orders)) setOrders(mergeLocalOrders(res.orders, user?.email));
       } catch (e) {}
       setLoadingOrders(false);
       setLoadedSections((prev) => ({ ...prev, orders: true }));
@@ -300,6 +308,18 @@ const mergeLocalOrders = (serverOrders: any[]): any[] => {
     fetchSectionData(activeTab, true);
   };
 
+  // Clear ALL section state immediately when user changes (logout/switch account)
+  // This prevents the previous user's data from flashing for the new user
+  useEffect(() => {
+    setOrders([]);
+    setAddresses([]);
+    setWishlistIds([]);
+    setWishlistProducts([]);
+    setNotifications([]);
+    setSupportTickets([]);
+    setLoadedSections({});
+  }, [user?.id]);
+
   useEffect(() => {
     loadProfile();
   }, [user]);
@@ -315,7 +335,7 @@ const mergeLocalOrders = (serverOrders: any[]): any[] => {
       if (!user) return;
       setLoadingOrders(true);
       api.getOrders().then((res) => {
-        if (res.ok && Array.isArray(res.orders)) setOrders(mergeLocalOrders(res.orders));
+        if (res.ok && Array.isArray(res.orders)) setOrders(mergeLocalOrders(res.orders, user?.email));
         setLoadingOrders(false);
       }).catch(() => setLoadingOrders(false));
     };
