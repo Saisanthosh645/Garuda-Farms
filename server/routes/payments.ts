@@ -43,30 +43,90 @@ async function decrementProductStock(supabase: any, items: Array<{ product_id: a
           .eq('id', pId)
           .maybeSingle();
 
-        if (prod && prod.stock_quantity !== null && prod.stock_quantity !== undefined && !isNaN(Number(prod.stock_quantity))) {
-          const currentQty = Number(prod.stock_quantity);
-          const newStock = Math.max(0, currentQty - qtyPurchased);
-          const isInStock = newStock > 0;
+        if (prod) {
+          const currentQty = Number(prod.stock_quantity ?? 100);
+          const newQty = Math.max(0, currentQty - qtyPurchased);
+          const isInStock = newQty > 0;
 
           await supabase
             .from('products')
             .update({
-              stock_quantity: newStock,
+              stock_quantity: newQty,
               is_in_stock: isInStock,
               updated_at: new Date().toISOString(),
             })
             .eq('id', pId);
 
-          updateLocalStockQuantity(pId, newStock);
-          console.log(`[Stock Decremented] Product #${pId}: ${currentQty} -> ${newStock} (In Stock: ${isInStock})`);
+          updateLocalStockQuantity(pId, newQty);
         }
       } else {
-        // Fallback for local products cache
         decrementLocalProductStock(pId, qtyPurchased);
       }
     } catch (err: any) {
-      console.warn(`[Stock Decrement Error] Product #${item.product_id}:`, err?.message);
+      console.warn(`[Stock Decrement Error] Failed for product #${item.product_id}:`, err?.message);
     }
+  }
+}
+
+/**
+ * Automatically save or update customer address in customer_addresses and mark as default
+ */
+async function autoSaveAddressAsDefault(
+  supabase: any,
+  userId: string | undefined | null,
+  details: {
+    fullName: string;
+    phone: string;
+    addressLine: string;
+    city: string;
+    pincode: string;
+  }
+) {
+  if (!supabase || !userId || !details.addressLine || !details.pincode) return;
+  try {
+    const cleanAddr = details.addressLine.trim();
+    const cleanPin = details.pincode.trim();
+    if (!cleanAddr || !cleanPin) return;
+
+    const { data: existing } = await supabase
+      .from('customer_addresses')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('address_line', cleanAddr)
+      .eq('pincode', cleanPin)
+      .maybeSingle();
+
+    await supabase
+      .from('customer_addresses')
+      .update({ is_default: false })
+      .eq('user_id', userId);
+
+    if (existing && existing.id) {
+      await supabase
+        .from('customer_addresses')
+        .update({
+          full_name: details.fullName,
+          phone: details.phone,
+          city: details.city || 'Hyderabad',
+          is_default: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', existing.id);
+    } else {
+      await supabase.from('customer_addresses').insert({
+        user_id: userId,
+        full_name: details.fullName,
+        phone: details.phone,
+        address_line: cleanAddr,
+        city: details.city || 'Hyderabad',
+        state: 'Telangana',
+        pincode: cleanPin,
+        label: 'Default Harvest Address',
+        is_default: true,
+      });
+    }
+  } catch (err: any) {
+    console.warn('[Address Book Error] Auto-saving address failed:', err?.message);
   }
 }
 
@@ -533,6 +593,17 @@ export async function handleVerifyPayment(req: Request, res: Response): Promise<
     // Decrement product stock quantities automatically
     decrementProductStock(supabase, calc.validatedItems);
 
+    // Auto-save shipping address to customer's address book as default
+    if (authUser?.id) {
+      autoSaveAddressAsDefault(supabase, authUser.id, {
+        fullName: orderRecord.customer_name,
+        phone: orderRecord.customer_phone,
+        addressLine: orderRecord.shipping_address,
+        city: orderRecord.city,
+        pincode: orderRecord.pincode,
+      });
+    }
+
     // Trigger secondary real-time Google Sheets backup sync (non-blocking)
     syncOrderToGoogleSheets({ ...orderRecord, items: calc.validatedItems });
 
@@ -680,6 +751,17 @@ export async function handleCreateCodOrder(req: Request, res: Response): Promise
 
     // Decrement product stock quantities automatically
     decrementProductStock(supabase, calc.validatedItems);
+
+    // Auto-save shipping address to customer's address book as default
+    if (authUser?.id) {
+      autoSaveAddressAsDefault(supabase, authUser.id, {
+        fullName: orderRecord.customer_name,
+        phone: orderRecord.customer_phone,
+        addressLine: orderRecord.shipping_address,
+        city: orderRecord.city,
+        pincode: orderRecord.pincode,
+      });
+    }
 
     // Trigger secondary real-time Google Sheets backup sync (non-blocking)
     syncOrderToGoogleSheets({ ...orderRecord, items: calc.validatedItems });

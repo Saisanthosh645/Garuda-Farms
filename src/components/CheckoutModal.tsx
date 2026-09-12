@@ -309,6 +309,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           setStep('success');
           window.dispatchEvent(new Event('garuda_products_updated'));
           try { localStorage.setItem('garuda_products_sync', Date.now().toString()); } catch {}
+          if (authUser) {
+            api.addAddress({
+              full_name: name,
+              phone,
+              address_line: address,
+              city,
+              pincode,
+              is_default: true,
+              label: 'Default Harvest Address',
+            }).catch(() => {});
+          }
           onOrderSuccess();
         } else {
           setErrorMessage(res?.error || 'Could not create COD order. Please try again later.');
