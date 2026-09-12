@@ -69,9 +69,53 @@ export const AccountPage: React.FC<AccountPageProps> = ({
   const { user, signOut } = useAuth();
   const [activeTab, setActiveTab] = useState(initialTab);
 
+const mergeLocalOrders = (serverOrders: any[]): any[] => {
+  try {
+    const cached = JSON.parse(localStorage.getItem('garuda_placed_orders') || '[]');
+    if (!Array.isArray(cached) || cached.length === 0) return serverOrders;
+    const serverMap = new Set(serverOrders.map((o) => String(o.id)));
+    const merged = [...serverOrders];
+    cached.forEach((loc: any) => {
+      const id = String(loc.orderId || loc.id || '');
+      if (id && !serverMap.has(id)) {
+        merged.push({
+          id,
+          customer_name: loc.customerName,
+          customer_email: loc.email,
+          customer_phone: loc.phone,
+          shipping_address: loc.address,
+          city: loc.city,
+          pincode: loc.pincode,
+          delivery_slot: loc.deliverySlot,
+          total_amount: loc.total || 0,
+          subtotal: loc.subtotal || loc.total || 0,
+          delivery_charge: loc.deliveryFee || 0,
+          discount_amount: loc.discount || 0,
+          payment_method: loc.paymentMethod || 'COD',
+          payment_status: loc.paymentStatus || 'Pending',
+          order_status: 'Confirmed',
+          created_at: loc.timestamp || new Date().toISOString(),
+          items: (loc.items || []).map((it: any) => ({
+            id: String(it.product?.id || Math.random()),
+            product_id: Number(it.product?.id || 0),
+            product_name: it.product?.name || 'Farm Product',
+            selected_weight: it.selectedWeight || '',
+            unit_price: Number(it.price || 0),
+            quantity: Number(it.quantity || 1),
+            total_price: Number((it.price || 0) * (it.quantity || 1)),
+          })),
+        });
+      }
+    });
+    return merged.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+  } catch {
+    return serverOrders;
+  }
+};
+
   // States for DB data
   const [profile, setProfile] = useState<any>(null);
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>(() => mergeLocalOrders([]));
   const [addresses, setAddresses] = useState<any[]>([]);
   const [wishlistIds, setWishlistIds] = useState<number[]>([]);
   const [wishlistProducts, setWishlistProducts] = useState<Product[]>([]);
@@ -188,7 +232,7 @@ export const AccountPage: React.FC<AccountPageProps> = ({
         setLoadingOrders(true);
         try {
           const res = await api.getOrders();
-          if (res.ok && Array.isArray(res.orders)) setOrders(res.orders);
+          if (res.ok && Array.isArray(res.orders)) setOrders(mergeLocalOrders(res.orders));
         } catch (e) {}
         setLoadingOrders(false);
         setLoadedSections((prev) => ({ ...prev, orders: true }));

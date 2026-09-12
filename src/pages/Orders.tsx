@@ -33,9 +33,53 @@ interface OrderRecord {
   items?: OrderItemDetail[];
 }
 
+const mergeLocalOrders = (serverOrders: OrderRecord[]): OrderRecord[] => {
+  try {
+    const cached = JSON.parse(localStorage.getItem('garuda_placed_orders') || '[]');
+    if (!Array.isArray(cached) || cached.length === 0) return serverOrders;
+    const serverMap = new Set(serverOrders.map((o) => String(o.id)));
+    const merged = [...serverOrders];
+    cached.forEach((loc: any) => {
+      const id = String(loc.orderId || loc.id || '');
+      if (id && !serverMap.has(id)) {
+        merged.push({
+          id,
+          customer_name: loc.customerName,
+          customer_email: loc.email,
+          customer_phone: loc.phone,
+          shipping_address: loc.address,
+          city: loc.city,
+          pincode: loc.pincode,
+          delivery_slot: loc.deliverySlot,
+          total_amount: loc.total || 0,
+          subtotal: loc.subtotal || loc.total || 0,
+          delivery_charge: loc.deliveryFee || 0,
+          discount_amount: loc.discount || 0,
+          payment_method: loc.paymentMethod || 'COD',
+          payment_status: loc.paymentStatus || 'Pending',
+          order_status: 'Confirmed',
+          created_at: loc.timestamp || new Date().toISOString(),
+          items: (loc.items || []).map((it: any) => ({
+            id: String(it.product?.id || Math.random()),
+            product_id: Number(it.product?.id || 0),
+            product_name: it.product?.name || 'Farm Product',
+            selected_weight: it.selectedWeight || '',
+            unit_price: Number(it.price || 0),
+            quantity: Number(it.quantity || 1),
+            total_price: Number((it.price || 0) * (it.quantity || 1)),
+          })),
+        });
+      }
+    });
+    return merged.sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+  } catch {
+    return serverOrders;
+  }
+};
+
 export const OrdersPage: React.FC = () => {
   const { session, user } = useAuth();
-  const [orders, setOrders] = useState<OrderRecord[]>([]);
+  const [orders, setOrders] = useState<OrderRecord[]>(() => mergeLocalOrders([]));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,7 +93,7 @@ export const OrdersPage: React.FC = () => {
       });
       if (res.ok) {
         const data = await res.json();
-        setOrders(data.orders || []);
+        setOrders(mergeLocalOrders(data.orders || []));
       } else {
         setError('Failed to load your orders.');
       }

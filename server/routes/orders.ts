@@ -66,22 +66,21 @@ router.get('/', requireUser, async (req: Request, res: Response): Promise<void> 
     }
 
     const userId = req.user?.id;
-    const userEmail = req.user?.email;
+    const cleanEmail = String(req.user?.email || '').trim().toLowerCase();
 
-    if (!userId && !userEmail) {
+    if (!userId && !cleanEmail) {
       res.status(400).json({ ok: false, error: 'User ID or email missing in request.' });
       return;
     }
 
-    // PRIMARY: Query by customer_email — always reliable since email is always stored in orders
     let allOrders: any[] = [];
     const seenIds = new Set<string>();
 
-    if (userEmail) {
+    if (cleanEmail) {
       const { data: emailOrders, error: emailErr } = await client
         .from('orders')
         .select('*')
-        .eq('customer_email', userEmail)
+        .ilike('customer_email', cleanEmail)
         .order('created_at', { ascending: false });
 
       if (!emailErr && emailOrders) {
@@ -96,7 +95,6 @@ router.get('/', requireUser, async (req: Request, res: Response): Promise<void> 
       }
     }
 
-    // SECONDARY: Also try auth_id lookup (may not exist on older DBs — handle gracefully)
     if (userId) {
       try {
         const { data: authOrders, error: authErr } = await client
@@ -114,7 +112,6 @@ router.get('/', requireUser, async (req: Request, res: Response): Promise<void> 
           });
         }
       } catch (authLookupErr: any) {
-        // auth_id column may not exist yet — non-fatal, skip
         console.warn('[Orders] auth_id lookup skipped:', authLookupErr?.message);
       }
     }
