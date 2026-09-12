@@ -811,14 +811,14 @@ export const api = {
     }
   },
 
-  // Wishlist DB
   async getWishlist(): Promise<{ ok: boolean; productIds?: number[]; error?: string }> {
     const headers = await getAuthHeader();
     try {
       const res = await fetch('/api/wishlist', { headers });
+      if (!res.ok) return { ok: false, productIds: [] };
       return res.json();
     } catch (err: any) {
-      return { ok: false, error: err.message };
+      return { ok: false, productIds: [], error: err.message };
     }
   },
 
