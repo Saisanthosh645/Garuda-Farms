@@ -374,6 +374,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           setConfirmedOrder(created);
           setStep('success');
           window.dispatchEvent(new Event('garuda_products_updated'));
+          window.dispatchEvent(new Event('garuda_order_placed'));
           try { localStorage.setItem('garuda_products_sync', Date.now().toString()); } catch {}
           if (authUser) {
             api.addAddress({
@@ -491,6 +492,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           saveOrderToStorage(newOrder);
           setConfirmedOrder(newOrder);
           setStep('success');
+          window.dispatchEvent(new Event('garuda_order_placed'));
           onOrderSuccess();
         } else {
           setErrorMessage(verifyRes.error || 'Payment verification failed.');
@@ -604,6 +606,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               setConfirmedOrder(newOrder);
               setStep('success');
               window.dispatchEvent(new Event('garuda_products_updated'));
+              window.dispatchEvent(new Event('garuda_order_placed'));
               try { localStorage.setItem('garuda_products_sync', Date.now().toString()); } catch {}
               onOrderSuccess();
             } else {

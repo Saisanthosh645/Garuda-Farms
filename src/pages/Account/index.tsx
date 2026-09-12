@@ -225,18 +225,18 @@ const mergeLocalOrders = (serverOrders: any[]): any[] => {
   };
 
   // Lazy-load section data on demand when tab opens
+  // NOTE: orders and addresses ALWAYS reload on each navigation to keep data fresh
   const fetchSectionData = async (tab: string, force = false) => {
     if (!user) return;
     if (tab === 'overview' || tab === 'orders') {
-      if (!loadedSections['orders'] || force) {
-        setLoadingOrders(true);
-        try {
-          const res = await api.getOrders();
-          if (res.ok && Array.isArray(res.orders)) setOrders(mergeLocalOrders(res.orders));
-        } catch (e) {}
-        setLoadingOrders(false);
-        setLoadedSections((prev) => ({ ...prev, orders: true }));
-      }
+      // Always force-reload orders — never use stale cache so new orders appear immediately
+      setLoadingOrders(true);
+      try {
+        const res = await api.getOrders();
+        if (res.ok && Array.isArray(res.orders)) setOrders(mergeLocalOrders(res.orders));
+      } catch (e) {}
+      setLoadingOrders(false);
+      setLoadedSections((prev) => ({ ...prev, orders: true }));
     }
     if (tab === 'overview' || tab === 'addresses') {
       if (!loadedSections['addresses'] || force) {
@@ -307,6 +307,21 @@ const mergeLocalOrders = (serverOrders: any[]): any[] => {
   useEffect(() => {
     fetchSectionData(activeTab);
   }, [user, activeTab]);
+
+  // Listen for new order placed event (fired from CheckoutModal after success)
+  // so My Orders auto-refreshes without needing a manual page reload
+  useEffect(() => {
+    const handleOrderPlaced = () => {
+      if (!user) return;
+      setLoadingOrders(true);
+      api.getOrders().then((res) => {
+        if (res.ok && Array.isArray(res.orders)) setOrders(mergeLocalOrders(res.orders));
+        setLoadingOrders(false);
+      }).catch(() => setLoadingOrders(false));
+    };
+    window.addEventListener('garuda_order_placed', handleOrderPlaced);
+    return () => window.removeEventListener('garuda_order_placed', handleOrderPlaced);
+  }, [user]);
 
   // Sync Wishlist products when wishlistIds or allProducts update
   useEffect(() => {

@@ -223,19 +223,14 @@ async function calculateAuthoritativeTotals(
   let deliveryFee = 0;
   if (pincode) {
     const deliveryCalc = await calculateServerDeliveryFee(pincode, subtotal, couponCode);
-    if (!deliveryCalc.ok || !deliveryCalc.serviceable) {
-      return {
-        ok: false,
-        error: deliveryCalc.error || 'Delivery is not available to this location.',
-        subtotal: 0,
-        deliveryFee: 0,
-        discount: 0,
-        total: 0,
-        totalInPaise: 0,
-        validatedItems: [],
-      };
+    if (deliveryCalc.ok && deliveryCalc.serviceable) {
+      // Known serviceable location — use the calculated fee
+      deliveryFee = deliveryCalc.finalFee;
+    } else {
+      // Pincode not in DB or unserviceable — fall back to flat ₹40 fee (don't block the order)
+      const isGarudaFree = String(couponCode || '').trim().toUpperCase() === 'GARUDAFREE' && subtotal >= 500;
+      deliveryFee = isGarudaFree || validatedItems.length === 0 ? 0 : 40;
     }
-    deliveryFee = deliveryCalc.finalFee;
   } else {
     const isGarudaFree = String(couponCode || '').trim().toUpperCase() === 'GARUDAFREE' && subtotal >= 500;
     deliveryFee = isGarudaFree || validatedItems.length === 0 ? 0 : 40;
