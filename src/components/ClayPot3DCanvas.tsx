@@ -17,11 +17,14 @@ export const ClayPot3DCanvas: React.FC<ClayPot3DCanvasProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { scrollY } = useScroll();
 
-  // Motion parallax for smooth vertical translation along scroll
-  const potY = useTransform(scrollY, [0, 1200], [0, 40]);
-  const potScale = useTransform(scrollY, [0, 400, 1000], [1, 1.05, 0.98]);
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  // Motion parallax for smooth vertical translation along scroll — desktop only
+  const potY = useTransform(scrollY, [0, 1200], isMobile ? [0, 0] : [0, 40]);
+  const potScale = useTransform(scrollY, [0, 400, 1000], isMobile ? [1, 1, 1] : [1, 1.05, 0.98]);
 
   useEffect(() => {
+    // Do not initialise Three.js on mobile — too expensive for low-end devices
+    if (typeof window !== 'undefined' && window.innerWidth < 768) return;
     if (!canvasRef.current || !containerRef.current) return;
 
     const width = size;

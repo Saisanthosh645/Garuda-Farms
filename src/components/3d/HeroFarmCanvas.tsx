@@ -11,6 +11,8 @@ export const HeroFarmCanvas: React.FC<HeroFarmCanvasProps> = () => {
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+    // Skip Three.js on mobile — WebGL is too expensive on low-end devices
+    if (window.innerWidth < 768) return;
 
     // Check if WebGL is supported
     let renderer: THREE.WebGLRenderer | null = null;

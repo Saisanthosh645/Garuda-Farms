@@ -38,11 +38,24 @@ const PetalSVG: React.FC<{ color: string; size: number }> = ({ color, size }) =>
 export const FloatingLeaves: React.FC = () => {
   const [leaves, setLeaves] = useState<LeafParticle[]>([]);
   const { scrollY } = useScroll();
-  const yOffset = useTransform(scrollY, [0, 4000], [0, -300]);
+
+  // Detect mobile and reduced-motion preferences once on mount
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // Disable scroll-driven parallax on mobile (no-op transform keeps it static)
+  const yOffset = useTransform(scrollY, [0, 4000], isMobile ? [0, 0] : [0, -300]);
 
   useEffect(() => {
-    const isMobile = window.innerWidth < 768;
-    const count = isMobile ? 10 : 20;
+    // No leaves on mobile or when user prefers reduced motion
+    if (isMobile || prefersReducedMotion) {
+      setLeaves([]);
+      return;
+    }
+
+    const count = 20; // desktop only
     const colors = ['#2D6A4F', '#52B788', '#D4A373', '#74C69D', '#7DAA8C', '#C8A882', '#40916C'];
     const shapes: Array<'leaf' | 'blob' | 'petal'> = ['leaf', 'leaf', 'blob', 'petal', 'leaf'];
 
@@ -60,7 +73,10 @@ export const FloatingLeaves: React.FC = () => {
     }));
 
     setLeaves(generated);
-  }, []);
+  }, [isMobile, prefersReducedMotion]);
+
+  // Nothing to render on mobile or reduced-motion
+  if (leaves.length === 0) return null;
 
   return (
     <motion.div

@@ -49,6 +49,25 @@
   }
 }
 
+/* ─── Mobile: disable expensive backdrop-filter globally ─────────────────────
+   backdrop-blur is the #1 GPU cost on low-end Android. Replace with opaque
+   fallback backgrounds on mobile; desktop keeps the full glass effect.      */
+@media (max-width: 767px) {
+  * {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  /* Restore solid backgrounds for key surfaces that relied on blur for legibility */
+  .glass-panel-dark {
+    background: rgba(15, 45, 31, 0.95) !important;
+  }
+
+  .glass-panel-light {
+    background: rgba(253, 251, 247, 0.97) !important;
+  }
+}
+
 /* Custom 3D & Animation utilities */
 .perspective-1000 {
   perspective: 1000px;

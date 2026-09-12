@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { BenefitsSection } from './components/BenefitsSection';
@@ -22,7 +22,9 @@ import { ProductModal } from './components/ProductModal';
 import { CartDrawer } from './components/CartDrawer';
 import { WishlistDrawer } from './components/WishlistDrawer';
 import { SearchModal } from './components/SearchModal';
-import { CheckoutModal } from './components/CheckoutModal';
+// CheckoutModal and AdminPanel are lazy-loaded — not bundled in the initial chunk
+const CheckoutModal = lazy(() => import('./components/CheckoutModal').then(m => ({ default: m.CheckoutModal })));
+
 import { AdminModal } from './components/AdminModal';
 import { PoliciesModal, PolicyTab } from './components/PoliciesModal';
 import { TrackOrderModal } from './components/TrackOrderModal';
@@ -45,9 +47,21 @@ import SignupPage from './pages/Auth/Signup';
 import ForgotPasswordPage from './pages/Auth/ForgotPassword';
 import AccountPage from './pages/Account';
 import OrdersPage from './pages/Orders';
-import AdminPanel from './pages/Admin';
+const AdminPanel = lazy(() => import('./pages/Admin'));
+
 import { useAuth } from './auth/AuthProvider';
 import AuthModal from './components/AuthModal';
+
+// ─── Admin Allowlist (frontend guard — mirrors server-side ADMIN_ALLOWLIST) ────
+const ADMIN_ALLOWLIST = [
+  'garudafarms9427@gmail.com',
+  'raminisaisanthosh@gmail.com',
+];
+
+function isAdminUser(email?: string | null): boolean {
+  if (!email) return false;
+  return ADMIN_ALLOWLIST.some((a) => a.toLowerCase().trim() === email.toLowerCase().trim());
+}
 
 export default function App() {
   const auth = useAuth();
@@ -70,11 +84,12 @@ export default function App() {
     }
   };
 
-  // Initial product load + fast polling + real-time cross-tab event listeners
+  // Initial product load + visibility-aware polling + real-time cross-tab event listeners
   useEffect(() => {
     refreshProducts();
-    // Poll every 3s so admin availability changes propagate rapidly to open storefronts
-    const pollInterval = setInterval(refreshProducts, 3_000);
+
+    // Poll every 30s (was 3s) — admin changes still propagate instantly via storage events
+    let pollInterval: ReturnType<typeof setInterval> | null = setInterval(refreshProducts, 30_000);
 
     const handleSync = () => refreshProducts();
     window.addEventListener('garuda_products_updated', handleSync);
@@ -83,10 +98,28 @@ export default function App() {
     };
     window.addEventListener('storage', handleStorage);
 
+    // Pause polling when tab is hidden, resume + refresh when visible again
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        if (pollInterval) {
+          clearInterval(pollInterval);
+          pollInterval = null;
+        }
+      } else {
+        // Tab became visible — refresh immediately then restart interval
+        refreshProducts();
+        if (!pollInterval) {
+          pollInterval = setInterval(refreshProducts, 30_000);
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
-      clearInterval(pollInterval);
+      if (pollInterval) clearInterval(pollInterval);
       window.removeEventListener('garuda_products_updated', handleSync);
       window.removeEventListener('storage', handleStorage);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
   // Auto-clean cart whenever liveProducts changes:
@@ -471,14 +504,30 @@ export default function App() {
     }
   };
 
-  // Admin Panel full-page view — renders instead of the storefront
+  // Admin Panel full-page view — only accessible to allowlisted admin emails
   if (activeView === 'admin') {
-    return <AdminPanel onBack={() => {
-      setActiveView('home');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      // Re-fetch products so any admin changes reflect immediately on the storefront
-      refreshProducts();
-    }} />;
+    // If auth has loaded and user is NOT an admin, redirect to home immediately
+    if (!auth.loading && !isAdminUser(auth.user?.email)) {
+      // Use effect on next tick to avoid setState during render
+      setTimeout(() => {
+        setActiveView('home');
+        window.history.replaceState({}, '', '/');
+      }, 0);
+      return null;
+    }
+    return (
+      <Suspense fallback={
+        <div className="min-h-screen bg-[#0F2D1F] flex items-center justify-center">
+          <div className="text-[#52B788] text-sm font-medium tracking-wider animate-pulse">Loading Admin Panel…</div>
+        </div>
+      }>
+        <AdminPanel onBack={() => {
+          setActiveView('home');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          refreshProducts();
+        }} />
+      </Suspense>
+    );
   }
 
   return (
@@ -809,29 +858,28 @@ export default function App() {
       />
 
       {/* Checkout Modal with Confetti, Receipt & Seamless Payment */}
-      <CheckoutModal
-        isOpen={isCheckoutOpen}
-        items={cart}
-        discountAmount={appliedDiscount}
-        couponCode={appliedCoupon}
-        onClose={() => setIsCheckoutOpen(false)}
-        onOrderSuccess={() => {
-          // 1. Clear cart so it's empty for the next order
-          setCart([]);
-          // 2. Reset discount/coupon state
-          setAppliedDiscount(0);
-          setAppliedCoupon('');
-          // 3. If user was on cart page, navigate away so empty cart isn't shown behind modal
-          if (activeView === 'cart') {
-            setActiveView('home');
-          }
-        }}
-        onTrackOrder={(orderId) => {
-          setIsCheckoutOpen(false);
-          setTrackOrderId(orderId);
-          setIsTrackOrderOpen(true);
-        }}
-      />
+      <Suspense fallback={null}>
+        <CheckoutModal
+          isOpen={isCheckoutOpen}
+          items={cart}
+          discountAmount={appliedDiscount}
+          couponCode={appliedCoupon}
+          onClose={() => setIsCheckoutOpen(false)}
+          onOrderSuccess={() => {
+            setCart([]);
+            setAppliedDiscount(0);
+            setAppliedCoupon('');
+            if (activeView === 'cart') {
+              setActiveView('home');
+            }
+          }}
+          onTrackOrder={(orderId) => {
+            setIsCheckoutOpen(false);
+            setTrackOrderId(orderId);
+            setIsTrackOrderOpen(true);
+          }}
+        />
+      </Suspense>
 
       {/* Admin Panel — now a full-page view (see activeView === 'admin' above) */}
 

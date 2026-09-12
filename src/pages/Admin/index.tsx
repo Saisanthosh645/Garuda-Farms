@@ -15,6 +15,17 @@ import {
   ExternalLink, FileText, Lock
 } from 'lucide-react';
 
+// ─── Admin Allowlist (frontend guard — mirrors server-side ADMIN_ALLOWLIST) ────
+const ADMIN_ALLOWLIST = [
+  'garudafarms9427@gmail.com',
+  'raminisaisanthosh@gmail.com',
+];
+
+function isAdminEmail(email?: string | null): boolean {
+  if (!email) return false;
+  return ADMIN_ALLOWLIST.some((a) => a.toLowerCase().trim() === email.toLowerCase().trim());
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 type AdminSection =
   | 'dashboard' | 'products' | 'categories' | 'orders'
@@ -2836,8 +2847,17 @@ export default function AdminPanel({ onBack }: { onBack?: () => void }) {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      // If auth user is available, populate admin identity immediately for zero latency
+      // If auth user is available, check allowlist FIRST before granting admin access
       if (authUser && !adminUser) {
+        if (!isAdminEmail(authUser.email)) {
+          // Non-admin user — show login form with error message
+          if (mounted) {
+            setLoginError('You are not authorized to access the Admin Panel.');
+            setVerifying(false);
+          }
+          return;
+        }
+        // Admin email confirmed — pre-populate admin identity
         const initialAdmin = {
           id: authUser.id,
           email: authUser.email,
@@ -2858,6 +2878,11 @@ export default function AdminPanel({ onBack }: { onBack?: () => void }) {
           if (mounted && res.ok && res.admin) {
             setAdminUser(res.admin);
             try { sessionStorage.setItem('garuda_admin_user', JSON.stringify(res.admin)); } catch {}
+          } else if (mounted && !res.ok) {
+            // Server denied — clear any stale admin state
+            setAdminUser(null);
+            try { sessionStorage.removeItem('garuda_admin_user'); } catch {}
+            setLoginError('You are not authorized to access the Admin Panel.');
           }
         }
       } catch (err) {

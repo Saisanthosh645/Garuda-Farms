@@ -39,14 +39,21 @@ export const Hero: React.FC<HeroProps> = ({ onBuyNow, onExploreFarm, onViewCart 
   const { scrollY } = useScroll();
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  // Detect mobile once — used to skip video download and heavy parallax
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const skipHeavyEffects = isMobile || prefersReducedMotion;
+
   const [isPlaying, setIsPlaying] = useState(true);
   const [isAudioActive, setIsAudioActive] = useState(false);
   const [videoLoaded, setVideoLoaded] = useState(false);
 
-  // Parallax Scroll Transforms
-  const textY = useTransform(scrollY, [0, 600], [0, -80]);
-  const textOpacity = useTransform(scrollY, [0, 450], [1, 0]);
-  const bgScale = useTransform(scrollY, [0, 800], [1, 1.08]);
+  // Parallax Scroll Transforms — static on mobile to avoid continuous RAF work
+  const textY = useTransform(scrollY, [0, 600], skipHeavyEffects ? [0, 0] : [0, -80]);
+  const textOpacity = useTransform(scrollY, [0, 450], skipHeavyEffects ? [1, 1] : [1, 0]);
+  const bgScale = useTransform(scrollY, [0, 800], skipHeavyEffects ? [1, 1] : [1, 1.08]);
 
   // Gentle procedural nature synthesizer (birds and gentle morning breeze)
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -167,28 +174,39 @@ export const Hero: React.FC<HeroProps> = ({ onBuyNow, onExploreFarm, onViewCart 
         style={{ scale: bgScale }}
         className="absolute inset-0 w-full h-full z-0 overflow-hidden"
       >
-        <video
-          ref={videoRef}
-          autoPlay
-          muted
-          loop
-          playsInline
-          onLoadedData={() => setVideoLoaded(true)}
-          poster={HERO_ORGANIC_VIDEO.poster}
-          className="w-full h-full object-cover"
-        >
-          <source src={HERO_ORGANIC_VIDEO.cdnUrl} type="video/mp4" />
-          <source src={HERO_ORGANIC_VIDEO.secondaryUrl} type="video/mp4" />
-          <source src={HERO_ORGANIC_VIDEO.tertiaryUrl} type="video/mp4" />
-        </video>
+        {/* On mobile: show only the poster image — no video download */}
+        {skipHeavyEffects ? (
+          <div
+            className="w-full h-full bg-cover bg-center"
+            style={{ backgroundImage: `url(${HERO_ORGANIC_VIDEO.poster}), url(${HERO_ORGANIC_VIDEO.fallbackPoster})` }}
+          />
+        ) : (
+          <video
+            ref={videoRef}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="none"
+            onLoadedData={() => setVideoLoaded(true)}
+            poster={HERO_ORGANIC_VIDEO.poster}
+            className="w-full h-full object-cover"
+          >
+            <source src={HERO_ORGANIC_VIDEO.cdnUrl} type="video/mp4" />
+            <source src={HERO_ORGANIC_VIDEO.secondaryUrl} type="video/mp4" />
+            <source src={HERO_ORGANIC_VIDEO.tertiaryUrl} type="video/mp4" />
+          </video>
+        )}
 
-        {/* Fallback when video is loading */}
-        <div
-          className={`absolute inset-0 bg-cover bg-center transition-opacity duration-700 ${
-            videoLoaded ? 'opacity-0' : 'opacity-100'
-          }`}
-          style={{ backgroundImage: `url(${HERO_ORGANIC_VIDEO.poster}), url(${HERO_ORGANIC_VIDEO.fallbackPoster})` }}
-        />
+        {/* Fallback when video is loading — only relevant on desktop */}
+        {!skipHeavyEffects && (
+          <div
+            className={`absolute inset-0 bg-cover bg-center transition-opacity duration-700 ${
+              videoLoaded ? 'opacity-0' : 'opacity-100'
+            }`}
+            style={{ backgroundImage: `url(${HERO_ORGANIC_VIDEO.poster}), url(${HERO_ORGANIC_VIDEO.fallbackPoster})` }}
+          />
+        )}
 
         {/* Rich organic gradient overlay: deep forest bottom, earthy mid, crystal top */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#060F09]/85 via-[#0A1A12]/30 to-black/20 pointer-events-none" />

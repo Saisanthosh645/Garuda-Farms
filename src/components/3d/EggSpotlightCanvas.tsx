@@ -7,6 +7,8 @@ export const EggSpotlightCanvas: React.FC = () => {
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+    // Skip Three.js on mobile — WebGL is too expensive on low-end devices
+    if (window.innerWidth < 768) return;
 
     let renderer: THREE.WebGLRenderer | null = null;
     try {
@@ -198,10 +200,10 @@ export const EggSpotlightCanvas: React.FC = () => {
   return (
     <div
       ref={containerRef}
-      className="w-full h-[360px] md:h-[480px] flex items-center justify-center cursor-grab active:cursor-grabbing relative"
+      className="w-full h-[280px] md:h-[480px] flex items-center justify-center cursor-grab active:cursor-grabbing relative"
       title="Hover and drag to rotate in 3D"
     >
-      <div className="absolute bottom-2 text-center text-xs text-[#8C6239] font-medium tracking-wider uppercase opacity-70 pointer-events-none">
+      <div className="absolute bottom-2 text-center text-xs text-[#8C6239] font-medium tracking-wider uppercase opacity-70 pointer-events-none hidden md:block">
         ✦ Interactive 3D Model • Move Mouse to Orbit ✦
       </div>
     </div>
