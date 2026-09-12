@@ -18,6 +18,7 @@ import {
 import confetti from 'canvas-confetti';
 import { CartItem, OrderDetails } from '../types';
 import { api } from '../lib/api';
+import { useAuth } from '../auth/AuthProvider';
 import { calculateDeliveryFeeByPincode, PINCODE_DISTANCE_MAP } from '../lib/distance';
 import { InvoiceModal } from './InvoiceModal';
 
@@ -98,13 +99,14 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   onOrderSuccess,
   onTrackOrder,
 }) => {
+  const { user: authUser } = useAuth();
   const [step, setStep] = useState<'details' | 'success'>('details');
-  const [name, setName] = useState('Sai Santhosh');
-  const [email, setEmail] = useState('raminisaisanthosh@gmail.com');
-  const [phone, setPhone] = useState('9866929427');
-  const [address, setAddress] = useState('Mudimyala, Chevella');
-  const [city, setCity] = useState('Rangareddy');
-  const [pincode, setPincode] = useState('501503');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [address, setAddress] = useState('');
+  const [city, setCity] = useState('');
+  const [pincode, setPincode] = useState('');
   const [deliverySlot, setDeliverySlot] = useState('Tomorrow Morning (6:00 AM – 8:00 AM)');
   const [paymentMethod, setPaymentMethod] = useState<'Online' | 'COD'>('Online');
   const [confirmedOrder, setConfirmedOrder] = useState<OrderDetails | null>(null);
@@ -116,12 +118,17 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       // CRITICAL: Always reset checkout step and confirmed order when modal opens.
-      // Without this, re-opening the modal after a successful order shows the
-      // previous order's success screen instead of a fresh checkout form.
       setStep('details');
       setConfirmedOrder(null);
       setErrorMessage(null);
       setIsProcessing(false);
+
+      // Pre-fill from current auth session if present
+      if (authUser) {
+        if (authUser.email) setEmail(authUser.email);
+        if (authUser.user_metadata?.full_name) setName(authUser.user_metadata.full_name);
+        if (authUser.user_metadata?.phone) setPhone(authUser.user_metadata.phone);
+      }
 
       (async () => {
         try {
@@ -140,9 +147,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             if (defaultAddr) {
               if (defaultAddr.full_name) setName(defaultAddr.full_name);
               if (defaultAddr.phone) setPhone(defaultAddr.phone);
-              setAddress(defaultAddr.address_line);
-              setCity(defaultAddr.city);
-              setPincode(defaultAddr.pincode);
+              if (defaultAddr.address_line) setAddress(defaultAddr.address_line);
+              if (defaultAddr.city) setCity(defaultAddr.city);
+              if (defaultAddr.pincode) setPincode(defaultAddr.pincode);
             }
           }
         } catch (e) {
@@ -150,7 +157,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
         }
       })();
     }
-  }, [isOpen]);
+  }, [isOpen, authUser]);
 
 
   // Razorpay processing & Delivery calculation state
@@ -165,11 +172,11 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     locationName: string;
     isFreeDelivery: boolean;
   }>({
-    distanceKm: 4,
+    distanceKm: 0,
     ratePerKm: 10,
-    calculatedFee: 40,
-    finalFee: 40,
-    locationName: 'Mudimyala / Chevella Sanctuary',
+    calculatedFee: 0,
+    finalFee: 0,
+    locationName: '',
     isFreeDelivery: false,
   });
   const [deliveryError, setDeliveryError] = useState<string | null>(null);
