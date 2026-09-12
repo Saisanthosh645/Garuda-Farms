@@ -190,12 +190,27 @@ export default function App() {
   const [activeView, setActiveView] = useState<'home' | 'products' | 'cart' | 'story' | 'sustainability' | 'account' | 'orders' | 'login' | 'signup' | 'forgot' | 'admin'>(getInitialView);
   const [selectedStoreCategory, setSelectedStoreCategory] = useState<ProductCategory | 'All'>('All');
 
-  // Sync activeView with browser URL history
+  // Sync activeView with browser URL history & SEO document title
   useEffect(() => {
     const path = activeView === 'home' ? '/' : `/${activeView}`;
     if (window.location.pathname !== path) {
       window.history.pushState({ view: activeView }, '', path);
     }
+
+    const titles: Record<string, string> = {
+      home: 'Garuda Farms — 100% Pure & Natural Farm Fresh Foods | Organic Produce & Dairy',
+      products: 'Shop Farm Fresh Produce & Organic Foods | Garuda Farms',
+      story: 'Our Farm Story & Sustainable Agriculture | Garuda Farms',
+      sustainability: 'Ethical & Regenerative Agriculture Practices | Garuda Farms',
+      cart: 'Shopping Cart | Garuda Farms',
+      account: 'My Account & Orders | Garuda Farms',
+      orders: 'Track Your Orders | Garuda Farms',
+      login: 'Login to Your Account | Garuda Farms',
+      signup: 'Create an Account | Garuda Farms',
+      forgot: 'Reset Password | Garuda Farms',
+      admin: 'Admin Portal & Store Management | Garuda Farms',
+    };
+    document.title = titles[activeView] || titles.home;
   }, [activeView]);
 
   // Handle browser back/forward and reload navigation
