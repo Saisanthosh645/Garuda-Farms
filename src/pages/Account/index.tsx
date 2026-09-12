@@ -71,21 +71,23 @@ export const AccountPage: React.FC<AccountPageProps> = ({
 
 const mergeLocalOrders = (serverOrders: any[], currentUserEmail?: string): any[] => {
   try {
-    // Use per-user scoped key to prevent cross-account order bleed
     const userKey = currentUserEmail
       ? `garuda_orders_${currentUserEmail.toLowerCase().replace(/[^a-z0-9]/g, '_')}`
       : null;
-    const cached = userKey
-      ? JSON.parse(localStorage.getItem(userKey) || '[]')
-      : [];
-    if (!Array.isArray(cached) || cached.length === 0) return serverOrders;
+    const userCached = userKey ? JSON.parse(localStorage.getItem(userKey) || '[]') : [];
+    const guestCached = JSON.parse(localStorage.getItem('garuda_orders_guest') || '[]');
+    const legacyCached = JSON.parse(localStorage.getItem('garuda_placed_orders') || '[]');
+    const combined = [...(Array.isArray(userCached) ? userCached : []), ...(Array.isArray(guestCached) ? guestCached : []), ...(Array.isArray(legacyCached) ? legacyCached : [])];
+
+    if (combined.length === 0) return serverOrders;
     const serverMap = new Set(serverOrders.map((o) => String(o.id)));
     const merged = [...serverOrders];
-    cached.forEach((loc: any) => {
+    combined.forEach((loc: any) => {
       const id = String(loc.orderId || loc.id || '');
-      // Extra safety: only include cached orders belonging to this email
       const locEmail = (loc.email || '').toLowerCase();
-      if (id && !serverMap.has(id) && (!locEmail || !currentUserEmail || locEmail === currentUserEmail.toLowerCase())) {
+      const matchEmail = currentUserEmail && locEmail && locEmail === currentUserEmail.toLowerCase();
+      if (id && !serverMap.has(id) && matchEmail) {
+        serverMap.add(id);
         merged.push({
           id,
           customer_name: loc.customerName,
