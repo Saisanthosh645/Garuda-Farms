@@ -116,47 +116,7 @@ router.get('/', requireUser, async (req: Request, res: Response): Promise<void> 
       }
     }
 
-    // Lookup phone number from user metadata or profile or customer record to fetch orders placed with same phone
-    let userPhones: string[] = [];
-    if (req.user?.phone) {
-      const p = String(req.user.phone).replace(/\D/g, '').slice(-10);
-      if (p.length === 10) userPhones.push(p);
-    }
-    if (userId) {
-      try {
-        const { data: prof } = await client.from('profiles').select('phone').eq('id', userId).maybeSingle();
-        if (prof?.phone) {
-          const p = String(prof.phone).replace(/\D/g, '').slice(-10);
-          if (p.length === 10 && !userPhones.includes(p)) userPhones.push(p);
-        }
-      } catch {}
-    }
-    if (allOrders.length > 0) {
-      allOrders.forEach((o) => {
-        if (o.customer_phone) {
-          const p = String(o.customer_phone).replace(/\D/g, '').slice(-10);
-          if (p.length === 10 && !userPhones.includes(p)) userPhones.push(p);
-        }
-      });
-    }
 
-    for (const phone of userPhones) {
-      try {
-        const { data: phoneOrders } = await client
-          .from('orders')
-          .select('*')
-          .ilike('customer_phone', `%${phone}%`)
-          .order('created_at', { ascending: false });
-        if (phoneOrders) {
-          phoneOrders.forEach((o) => {
-            if (!seenIds.has(o.id)) {
-              seenIds.add(o.id);
-              allOrders.push(o);
-            }
-          });
-        }
-      } catch {}
-    }
 
     // Sort merged results newest-first
     allOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
