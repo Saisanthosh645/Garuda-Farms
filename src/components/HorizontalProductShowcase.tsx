@@ -79,7 +79,7 @@ export const HorizontalProductShowcase: React.FC<HorizontalProductShowcaseProps>
               onClick={onExploreAll}
               className="hidden sm:inline-flex items-center gap-2 px-5 py-3 rounded-full bg-[#2D6A4F] hover:bg-[#1B4332] text-[#FAF8F2] text-xs font-bold tracking-widest uppercase transition-all shadow-md ml-2"
             >
-              <span>View All {sourceProducts.length}</span>
+              <span>Explore Fresh Products</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>

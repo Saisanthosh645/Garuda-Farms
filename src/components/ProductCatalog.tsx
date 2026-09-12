@@ -111,13 +111,6 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
               >
                 <span>{cat.icon}</span>
                 <span>{cat.name}</span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
-                    isSelected ? 'bg-[#2D6A4F] text-[#FAF8F2]' : 'bg-[#E5DEC9] text-[#0F2D1F]'
-                  }`}
-                >
-                  {cat.count}
-                </span>
               </button>
             );
           })}
