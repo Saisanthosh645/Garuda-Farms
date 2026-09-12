@@ -1,5 +1,3 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, 
   CheckCircle2, 
@@ -13,13 +11,15 @@ import {
   Lock,
   Printer,
   MessageCircle,
-  QrCode
+  QrCode,
+  Navigation,
+  MapPin
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { CartItem, OrderDetails } from '../types';
 import { api } from '../lib/api';
 import { useAuth } from '../auth/AuthProvider';
-import { calculateDeliveryFeeByPincode, PINCODE_DISTANCE_MAP } from '../lib/distance';
+import { calculateDeliveryFeeByPincode, PINCODE_DISTANCE_MAP, calculateGpsDistance } from '../lib/distance';
 import { InvoiceModal } from './InvoiceModal';
 
 interface CheckoutModalProps {
@@ -181,8 +181,72 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   });
   const [deliveryError, setDeliveryError] = useState<string | null>(null);
   const [isCheckingDelivery, setIsCheckingDelivery] = useState<boolean>(false);
+  const [isDetectingLocation, setIsDetectingLocation] = useState<boolean>(false);
 
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  const handleDetectLiveLocation = () => {
+    if (!navigator.geolocation) {
+      setErrorMessage('Geolocation is not supported by your browser. Please enter your address manually.');
+      return;
+    }
+
+    setIsDetectingLocation(true);
+    setErrorMessage(null);
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          const exactKm = calculateGpsDistance(lat, lon);
+
+          try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`, {
+              headers: { 'Accept-Language': 'en' },
+            });
+            const geoData = await res.json();
+
+            if (geoData && geoData.address) {
+              const addr = geoData.address;
+              const road = addr.road || addr.suburb || addr.neighbourhood || addr.residential || '';
+              const suburb = addr.suburb || addr.district || addr.county || '';
+              const detectedCity = addr.city || addr.town || addr.village || addr.state_district || 'Hyderabad';
+              const detectedPincode = addr.postcode ? addr.postcode.replace(/\D/g, '').slice(0, 6) : '';
+              const fullStreet = [road, suburb].filter(Boolean).join(', ');
+
+              if (fullStreet) setAddress(fullStreet);
+              if (detectedCity) setCity(detectedCity);
+              if (detectedPincode) setPincode(detectedPincode);
+            }
+          } catch (e) {
+            console.warn('Reverse geocode error:', e);
+          }
+
+          const calculatedFee = Math.max(40, Math.round(exactKm * 10));
+          const isFree = couponCode === 'GARUDAFREE' && subtotal >= 500;
+          setDeliveryInfo({
+            distanceKm: exactKm,
+            ratePerKm: 10,
+            calculatedFee,
+            finalFee: isFree || subtotal === 0 ? 0 : calculatedFee,
+            locationName: `Live GPS Location (${exactKm} km from Sanctuary)`,
+            isFreeDelivery: isFree,
+          });
+          setDeliveryError(null);
+        } catch (err: any) {
+          console.error('GPS calculation error:', err);
+        } finally {
+          setIsDetectingLocation(false);
+        }
+      },
+      (err) => {
+        setIsDetectingLocation(false);
+        setErrorMessage('Location permission denied or unavailable. Please enter your pincode manually.');
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   // Dynamic server-side delivery fee calculation & PIN serviceability check effect
   useEffect(() => {
@@ -653,9 +717,29 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Customer Details Form */}
                 <div className="space-y-4">
-                  <h4 className="font-heading text-xs font-bold tracking-widest text-[#0F2D1F] uppercase border-b border-[#EFE8DC] pb-2">
-                    1. Shipping & Harvest Recipient
-                  </h4>
+                  <div className="flex items-center justify-between border-b border-[#EFE8DC] pb-2">
+                    <h4 className="font-heading text-xs font-bold tracking-widest text-[#0F2D1F] uppercase">
+                      1. Shipping & Harvest Recipient
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={handleDetectLiveLocation}
+                      disabled={isDetectingLocation}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#2D6A4F]/10 hover:bg-[#2D6A4F]/20 text-[#2D6A4F] text-[11px] font-bold transition-all border border-[#2D6A4F]/20 shadow-2xs"
+                    >
+                      {isDetectingLocation ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin text-[#2D6A4F]" />
+                          <span>Locating GPS...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Navigation className="w-3.5 h-3.5 text-[#2D6A4F]" />
+                          <span>📍 Detect Live Location</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
 
                   <div>
                     <label className="text-[11px] font-bold uppercase text-[#8C6239] block mb-1">

@@ -108,3 +108,26 @@ export function calculateDeliveryFeeByPincode(
     amountNeededForFreeDelivery,
   };
 }
+
+// Garuda Sanctuary Mudimyala GPS Coordinates
+export const SANCTUARY_LAT = 17.3081;
+export const SANCTUARY_LON = 78.1345;
+
+/**
+ * Calculates exact road distance (in KM) using Haversine formula + 1.25x road factor
+ */
+export function calculateGpsDistance(userLat: number, userLon: number): number {
+  const R = 6371; // Earth radius in KM
+  const dLat = ((userLat - SANCTUARY_LAT) * Math.PI) / 180;
+  const dLon = ((userLon - SANCTUARY_LON) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((SANCTUARY_LAT * Math.PI) / 180) *
+      Math.cos((userLat * Math.PI) / 180) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  const straightKm = R * c;
+  const roadKm = Math.round(straightKm * 1.25 * 10) / 10;
+  return Math.max(2, roadKm);
+}
