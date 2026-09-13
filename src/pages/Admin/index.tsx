@@ -12,7 +12,7 @@ import {
   AlertCircle, CheckCircle2, Upload, Image, ToggleLeft, ToggleRight,
   ChevronDown, ChevronUp, ArrowLeft, IndianRupee, TrendingUp, Clock,
   Truck, Star, Shield, Activity, BarChart3, Bell, Save, RotateCcw,
-  ExternalLink, FileText, Lock
+  ExternalLink, FileText, Lock, Menu
 } from 'lucide-react';
 
 // ─── Admin Allowlist (frontend guard — mirrors server-side ADMIN_ALLOWLIST) ────
@@ -607,29 +607,33 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
   return (
     <div className="space-y-4">
       {/* Controls */}
-      <div className="flex flex-wrap items-center gap-3">
-        <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products..."
-            className="w-full pl-9 pr-3 py-2 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-[#2D6A4F]" />
+      <div className="flex flex-col gap-2">
+        {/* Row 1: Search + Filters */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[160px] max-w-sm">
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+            <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products..."
+              className="w-full pl-9 pr-3 py-2 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-[#2D6A4F]" />
+          </div>
+          <select value={filterAvail} onChange={(e) => setFilterAvail(e.target.value as any)}
+            className="px-3 py-2 rounded-xl border border-stone-200 text-sm font-medium focus:outline-none focus:border-[#2D6A4F]">
+            <option value="all">All Availability</option>
+            <option value="available">Available</option>
+            <option value="unavailable">Unavailable</option>
+          </select>
+          <select value={filterHidden} onChange={(e) => setFilterHidden(e.target.value as any)}
+            className="px-3 py-2 rounded-xl border border-stone-200 text-sm font-medium focus:outline-none focus:border-[#2D6A4F]">
+            <option value="all">All Visibility</option>
+            <option value="visible">👁️ Visible Only</option>
+            <option value="hidden">🙈 Hidden Only</option>
+          </select>
+          <button onClick={() => setFilterFeatured(!filterFeatured)}
+            className={`px-3 py-2 rounded-xl border text-sm font-medium transition-colors ${filterFeatured ? 'bg-amber-50 border-amber-300 text-amber-700' : 'border-stone-200 text-stone-600 hover:bg-stone-50'}`}>
+            ⭐ Featured Only
+          </button>
         </div>
-        <select value={filterAvail} onChange={(e) => setFilterAvail(e.target.value as any)}
-          className="px-3 py-2 rounded-xl border border-stone-200 text-sm font-medium focus:outline-none focus:border-[#2D6A4F]">
-          <option value="all">All Availability</option>
-          <option value="available">Available</option>
-          <option value="unavailable">Unavailable</option>
-        </select>
-        <select value={filterHidden} onChange={(e) => setFilterHidden(e.target.value as any)}
-          className="px-3 py-2 rounded-xl border border-stone-200 text-sm font-medium focus:outline-none focus:border-[#2D6A4F]">
-          <option value="all">All Visibility</option>
-          <option value="visible">👁️ Visible Only</option>
-          <option value="hidden">🙈 Hidden Only</option>
-        </select>
-        <button onClick={() => setFilterFeatured(!filterFeatured)}
-          className={`px-3 py-2 rounded-xl border text-sm font-medium transition-colors ${filterFeatured ? 'bg-amber-50 border-amber-300 text-amber-700' : 'border-stone-200 text-stone-600 hover:bg-stone-50'}`}>
-          ⭐ Featured Only
-        </button>
-        <div className="flex items-center gap-2 ml-auto">
+        {/* Row 2: Actions */}
+        <div className="flex flex-wrap items-center gap-2">
           <button onClick={() => setConfirmBulkHide(true)}
             title="Hide all products from website storefront"
             className="px-3 py-2 rounded-xl border border-rose-200 bg-rose-50 hover:bg-rose-100 text-rose-700 text-sm font-semibold flex items-center gap-1.5 transition-colors">
@@ -641,7 +645,7 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
             <Eye className="w-4 h-4 text-emerald-600" /><span>Show All</span>
           </button>
           <button onClick={() => setShowCreate(true)}
-            className="px-4 py-2 rounded-xl bg-[#2D6A4F] hover:bg-[#1B4332] text-white text-sm font-bold flex items-center gap-2 transition-colors">
+            className="ml-auto px-4 py-2 rounded-xl bg-[#2D6A4F] hover:bg-[#1B4332] text-white text-sm font-bold flex items-center gap-2 transition-colors">
             <Plus className="w-4 h-4" /><span>Add Product</span>
           </button>
         </div>
@@ -696,8 +700,8 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
               <button onClick={() => setShowCreate(false)} className="p-1.5 hover:bg-stone-100 rounded-lg"><X className="w-5 h-5" /></button>
             </div>
             <form onSubmit={handleCreate} className="p-5 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2">
                   <label className="block text-xs font-bold text-stone-600 mb-1">Product Name *</label>
                   <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
                     className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-[#2D6A4F]" />
@@ -724,12 +728,12 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
                   <input type="number" min="1" value={form.originalPrice} onChange={(e) => setForm({ ...form, originalPrice: e.target.value })} placeholder="Same as price if no discount"
                     className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-[#2D6A4F]" />
                 </div>
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <label className="block text-xs font-bold text-stone-600 mb-1">Description *</label>
                   <textarea required value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
                     rows={3} className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-[#2D6A4F] resize-none" />
                 </div>
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <label className="block text-xs font-bold text-stone-600 mb-1">Product Image</label>
                   <div className="flex items-center gap-3">
                     <input value={form.image} onChange={(e) => setForm({ ...form, image: e.target.value })} placeholder="https:// or upload below"
@@ -760,7 +764,7 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
                 </div>
 
                 {/* Stock Management Controls */}
-                <div className="col-span-2 bg-stone-50 border border-stone-200 rounded-xl p-3.5 space-y-3">
+                <div className="sm:col-span-2 bg-stone-50 border border-stone-200 rounded-xl p-3.5 space-y-3">
                   <label className="block text-xs font-bold text-stone-800 uppercase tracking-wider flex items-center gap-1.5">
                     <Package className="w-3.5 h-3.5 text-[#2D6A4F]" /> Admin Stock & Inventory Control
                   </label>
@@ -830,8 +834,8 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
               <button onClick={() => setEditProduct(null)} className="p-1.5 hover:bg-stone-100 rounded-lg"><X className="w-5 h-5" /></button>
             </div>
             <form onSubmit={handleUpdate} className="p-5 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="sm:col-span-2">
                   <label className="block text-xs font-bold text-stone-600 mb-1">Product Name</label>
                   <input value={editProduct.name} onChange={(e) => setEditProduct({ ...editProduct, name: e.target.value })}
                     className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-[#2D6A4F]" />
@@ -858,12 +862,12 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
                   <input value={editProduct.badge || ''} onChange={(e) => setEditProduct({ ...editProduct, badge: e.target.value })}
                     className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-[#2D6A4F]" />
                 </div>
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <label className="block text-xs font-bold text-stone-600 mb-1">Description</label>
                   <textarea value={editProduct.description} onChange={(e) => setEditProduct({ ...editProduct, description: e.target.value })}
                     rows={3} className="w-full px-3 py-2.5 rounded-xl border border-stone-200 text-sm focus:outline-none focus:border-[#2D6A4F] resize-none" />
                 </div>
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <label className="block text-xs font-bold text-stone-600 mb-1">Image URL</label>
                   <div className="flex items-center gap-3">
                     <input value={editProduct.image || ''} onChange={(e) => setEditProduct({ ...editProduct, image: e.target.value })}
@@ -878,7 +882,7 @@ function ProductsSection({ toast }: { toast: ReturnType<typeof useToast> }) {
                 </div>
 
                 {/* Stock Management Controls for Edit */}
-                <div className="col-span-2 bg-stone-50 border border-stone-200 rounded-xl p-3.5 space-y-3">
+                <div className="sm:col-span-2 bg-stone-50 border border-stone-200 rounded-xl p-3.5 space-y-3">
                   <label className="block text-xs font-bold text-stone-800 uppercase tracking-wider flex items-center gap-1.5">
                     <Package className="w-3.5 h-3.5 text-[#2D6A4F]" /> Admin Stock & Inventory Control
                   </label>
@@ -3000,10 +3004,12 @@ export default function AdminPanel({ onBack }: { onBack?: () => void }) {
     );
   }
 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-stone-100 flex">
       {/* Toast notifications */}
-      <div className="fixed top-4 right-4 z-[100] space-y-2">
+      <div className="fixed top-4 right-4 z-[100] space-y-2 max-w-[calc(100vw-2rem)]">
         {toast.toasts.map((t) => (
           <div key={t.id} className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg text-sm font-medium max-w-xs animate-[slideIn_0.2s_ease] ${
             t.type === 'success' ? 'bg-emerald-600 text-white' : t.type === 'error' ? 'bg-red-600 text-white' : 'bg-stone-800 text-white'
@@ -3014,23 +3020,43 @@ export default function AdminPanel({ onBack }: { onBack?: () => void }) {
         ))}
       </div>
 
+      {/* Mobile sidebar overlay backdrop */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-[#0F2D1F] text-white flex flex-col shrink-0 min-h-screen sticky top-0">
+      <aside className={`
+        fixed inset-y-0 left-0 z-50 w-64 bg-[#0F2D1F] text-white flex flex-col
+        transform transition-transform duration-300 ease-in-out
+        md:relative md:translate-x-0 md:shrink-0
+        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+      `}>
         <div className="p-5 border-b border-white/10">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-[#2D6A4F] rounded-xl flex items-center justify-center shrink-0">
               <Shield className="w-5 h-5 text-[#52B788]" />
             </div>
-            <div>
+            <div className="flex-1 min-w-0">
               <p className="font-black text-sm leading-tight">Garuda Farms</p>
               <p className="text-[10px] text-[#52B788] leading-tight">Admin Control Center</p>
             </div>
+            {/* Close button — mobile only */}
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="md:hidden p-1.5 rounded-lg hover:bg-white/10 text-white/70 hover:text-white shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
 
         <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
           {nav.map(({ key, label, icon: Icon }) => (
-            <button key={key} onClick={() => setSection(key)}
+            <button key={key} onClick={() => { setSection(key); setSidebarOpen(false); }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all text-left ${
                 section === key ? 'bg-[#2D6A4F] text-white' : 'text-white/70 hover:text-white hover:bg-white/10'
               }`}>
@@ -3060,23 +3086,33 @@ export default function AdminPanel({ onBack }: { onBack?: () => void }) {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 min-w-0">
-        <header className="bg-white border-b border-stone-200 px-6 py-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
-          <div>
-            <h1 className="font-black text-stone-900 text-lg">{sectionTitles[section]}</h1>
-            <p className="text-xs text-stone-400">Garuda Farms Store Control Center</p>
-          </div>
+      <main className="flex-1 min-w-0 min-h-screen">
+        <header className="bg-white border-b border-stone-200 px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between sticky top-0 z-10 shadow-sm">
           <div className="flex items-center gap-3">
-            <span className="text-xs text-stone-500 hidden sm:block">
+            {/* Hamburger — mobile only */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="md:hidden p-2 rounded-xl border border-stone-200 hover:bg-stone-50 text-stone-600"
+              aria-label="Open navigation"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <div>
+              <h1 className="font-black text-stone-900 text-base sm:text-lg leading-tight">{sectionTitles[section]}</h1>
+              <p className="text-[10px] sm:text-xs text-stone-400 hidden sm:block">Garuda Farms Store Control Center</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <span className="text-xs text-stone-500 hidden lg:block">
               Signed in as <strong className="text-stone-900">{adminUser.name || adminUser.email}</strong>
             </span>
-            <div className="w-8 h-8 bg-[#2D6A4F] rounded-full flex items-center justify-center text-white text-xs font-bold">
+            <div className="w-8 h-8 bg-[#2D6A4F] rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0">
               {(adminUser.name || adminUser.email || 'A')[0].toUpperCase()}
             </div>
           </div>
         </header>
 
-        <div className="p-6">
+        <div className="p-3 sm:p-4 md:p-6">
           {section === 'dashboard' && <DashboardSection toast={toast} />}
           {section === 'products' && <ProductsSection toast={toast} />}
           {section === 'categories' && <CategoriesSection toast={toast} />}
