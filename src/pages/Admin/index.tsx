@@ -2847,6 +2847,7 @@ export default function AdminPanel({ onBack }: { onBack?: () => void }) {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(() => !adminUser && !authUser);
   const toast = useToast();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -3003,8 +3004,6 @@ export default function AdminPanel({ onBack }: { onBack?: () => void }) {
       </div>
     );
   }
-
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-stone-100 flex">
