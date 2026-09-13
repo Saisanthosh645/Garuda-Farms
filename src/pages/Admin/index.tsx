@@ -2960,11 +2960,11 @@ export default function AdminPanel({ onBack }: { onBack?: () => void }) {
       <div className="min-h-screen bg-gradient-to-br from-[#0F2D1F] to-[#1B4332] flex items-center justify-center p-4">
         <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
           <div className="bg-[#0F2D1F] px-8 py-6 text-center">
-            <div className="w-14 h-14 bg-[#2D6A4F] rounded-2xl flex items-center justify-center mx-auto mb-3">
-              <Shield className="w-7 h-7 text-[#52B788]" />
+            <div className="w-16 h-16 bg-[#FAF5EB] rounded-full p-1 border-2 border-[#C49A45]/50 shadow-lg mx-auto mb-3 overflow-hidden flex items-center justify-center">
+              <img src="/garuda-farms-logo.png" alt="Garuda Farms Logo" className="w-full h-full object-contain rounded-full" />
             </div>
-            <h1 className="text-xl font-black text-white">Garuda Farms</h1>
-            <p className="text-[#52B788] text-sm mt-1">Admin Control Center</p>
+            <h1 className="text-xl font-black text-white font-serif tracking-wider" style={{ fontFamily: "'Cinzel', Georgia, serif" }}>GARUDA FARMS</h1>
+            <p className="text-[#C49A45] text-xs font-semibold tracking-widest uppercase mt-1">Admin Control Center</p>
           </div>
           <div className="p-8 space-y-5">
             {onBack && (
@@ -3036,12 +3036,12 @@ export default function AdminPanel({ onBack }: { onBack?: () => void }) {
       `}>
         <div className="p-5 border-b border-white/10">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 bg-[#2D6A4F] rounded-xl flex items-center justify-center shrink-0">
-              <Shield className="w-5 h-5 text-[#52B788]" />
+            <div className="w-10 h-10 rounded-full bg-[#FAF5EB] p-0.5 border border-[#C49A45]/40 shadow-sm shrink-0 overflow-hidden flex items-center justify-center">
+              <img src="/garuda-farms-logo.png" alt="Garuda Farms Logo" className="w-full h-full object-contain rounded-full" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="font-black text-sm leading-tight">Garuda Farms</p>
-              <p className="text-[10px] text-[#52B788] leading-tight">Admin Control Center</p>
+              <p className="font-black text-xs sm:text-sm leading-tight text-white tracking-wider font-serif" style={{ fontFamily: "'Cinzel', Georgia, serif" }}>GARUDA FARMS</p>
+              <p className="text-[10px] text-[#C49A45] font-semibold leading-tight tracking-wider uppercase">Admin Center</p>
             </div>
             {/* Close button — mobile only */}
             <button
@@ -3096,9 +3096,14 @@ export default function AdminPanel({ onBack }: { onBack?: () => void }) {
             >
               <Menu className="w-5 h-5" />
             </button>
-            <div>
-              <h1 className="font-black text-stone-900 text-base sm:text-lg leading-tight">{sectionTitles[section]}</h1>
-              <p className="text-[10px] sm:text-xs text-stone-400 hidden sm:block">Garuda Farms Store Control Center</p>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-[#FAF5EB] p-0.5 border border-[#C49A45]/40 shadow-sm overflow-hidden flex items-center justify-center shrink-0">
+                <img src="/garuda-farms-logo.png" alt="Garuda Farms Logo" className="w-full h-full object-contain rounded-full" />
+              </div>
+              <div>
+                <h1 className="font-black text-stone-900 text-base sm:text-lg leading-tight">{sectionTitles[section]}</h1>
+                <p className="text-[10px] sm:text-xs text-stone-400 hidden sm:block">Garuda Farms Store Control Center</p>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
