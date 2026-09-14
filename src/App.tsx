@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, lazy, Suspense } from 'react';
 import { Navbar } from './components/Navbar';
 import { Hero } from './components/Hero';
 import { BenefitsSection } from './components/BenefitsSection';
@@ -71,7 +71,8 @@ export default function App() {
   const [apiLoaded, setApiLoaded] = useState(false);
 
   // Fetch fresh products from the backend (bypasses browser cache via no-store header)
-  const refreshProducts = async () => {
+  // useCallback keeps the reference stable so the polling useEffect never holds a stale closure
+  const refreshProducts = useCallback(async () => {
     try {
       const data = await api.getProducts();
       if (Array.isArray(data)) {
@@ -81,7 +82,7 @@ export default function App() {
     } catch {
       // Keep current products if fetch fails
     }
-  };
+  }, []);
 
   // Initial product load + visibility-aware polling + real-time cross-tab event listeners
   useEffect(() => {
@@ -120,7 +121,7 @@ export default function App() {
       window.removeEventListener('storage', handleStorage);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, []);
+  }, [refreshProducts]);
   // Auto-clean cart whenever liveProducts changes:
   // Remove items whose product is now unavailable or hidden by admin
   useEffect(() => {
