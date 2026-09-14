@@ -70,7 +70,7 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
       if (!a.featured && b.featured) return 1;
       return a.id - b.id;
     });
-  }, [selectedCategory, searchQuery, sortBy, organicOnly]);
+  }, [catalogProducts, selectedCategory, searchQuery, sortBy, organicOnly]);
 
   return (
     <section id="products" className="py-20 sm:py-28 bg-[#FAF8F2] text-[#19241C] relative">
