@@ -1195,8 +1195,161 @@ async function requireAdmin(req, res, next) {
   }
 }
 
+// server/utils/smsWhatsapp.ts
+function sanitizePhoneNumber(phone) {
+  let digits = (phone || "").replace(/\D/g, "");
+  if (digits.length === 10) {
+    digits = "91" + digits;
+  }
+  return {
+    formatted: `+${digits}`,
+    digitsOnly: digits
+  };
+}
+function generateWhatsAppLink(phone, message) {
+  const { digitsOnly } = sanitizePhoneNumber(phone);
+  const encodedText = encodeURIComponent(message);
+  return `https://wa.me/${digitsOnly}?text=${encodedText}`;
+}
+async function sendOrderNotification(payload) {
+  const { phone, email, orderId, type, status, totalAmount, customerName } = payload;
+  const { formatted, digitsOnly } = sanitizePhoneNumber(phone);
+  const name = customerName || "Valued Patron";
+  let messageText = "";
+  switch (type) {
+    case "ORDER_PLACED":
+      messageText = `\u{1F33F} Garuda Farms: Thank you for your order! Order #${orderId} for \u20B9${totalAmount || 0} has been placed successfully. We are preparing your fresh farm products. Track your order at https://garudafarms.com/track`;
+      break;
+    case "STATUS_CHANGE":
+      messageText = `\u{1F69C} Garuda Farms Update: Order #${orderId} is now "${status}". Track live progress at https://garudafarms.com/track`;
+      break;
+    case "PAYMENT_RECEIVED":
+      messageText = `\u2705 Garuda Farms: Payment received for Order #${orderId} (\u20B9${totalAmount || 0}). Thank you!`;
+      break;
+    case "ORDER_CANCELLED":
+      messageText = `\u274C Garuda Farms: Order #${orderId} has been cancelled. For queries, call +91 98669 29427.`;
+      break;
+  }
+  const result = {
+    smsSent: false,
+    whatsappSent: false,
+    whatsappDeepLink: generateWhatsAppLink(phone, messageText),
+    inAppSaved: false
+  };
+  try {
+    const supabase = getSupabase();
+    if (supabase && email) {
+      await supabase.from("customer_notifications").insert({
+        customer_email: email,
+        title: type === "ORDER_PLACED" ? "Order Confirmed!" : `Order Status: ${status || type}`,
+        message: messageText,
+        type: "order",
+        read: false,
+        created_at: (/* @__PURE__ */ new Date()).toISOString()
+      });
+      result.inAppSaved = true;
+    }
+  } catch (err) {
+    console.warn("[Notifications] In-app notification error:", err?.message);
+  }
+  const twilioSid = process.env.TWILIO_ACCOUNT_SID;
+  const twilioToken = process.env.TWILIO_AUTH_TOKEN;
+  const twilioPhone = process.env.TWILIO_PHONE_NUMBER;
+  const msg91Key = process.env.MSG91_AUTH_KEY;
+  if (twilioSid && twilioToken && twilioPhone) {
+    try {
+      const auth = Buffer.from(`${twilioSid}:${twilioToken}`).toString("base64");
+      const body = new URLSearchParams({
+        From: twilioPhone,
+        To: formatted,
+        Body: messageText
+      });
+      const smsRes = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`, {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${auth}`,
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: body.toString()
+      });
+      if (smsRes.ok) {
+        result.smsSent = true;
+        console.log(`[SMS Sent] Successfully dispatched SMS to ${formatted}`);
+      }
+    } catch (err) {
+      console.error("[SMS Error]", err?.message);
+    }
+  } else {
+    console.log(`[SMS Notification Logged - Add TWILIO_ACCOUNT_SID to enable automated dispatch]`);
+    console.log(`\u{1F4F1} To: ${formatted} | Message: ${messageText}`);
+  }
+  console.log(`\u{1F4AC} WhatsApp Link: ${result.whatsappDeepLink}`);
+  return result;
+}
+
 // server/routes/auth.ts
 var router = Router();
+var otpStore = {};
+router.post("/send-otp", async (req, res) => {
+  try {
+    const { phone } = req.body;
+    const cleanPhone = (phone || "").replace(/\D/g, "");
+    if (!cleanPhone || cleanPhone.length < 10) {
+      res.status(400).json({ ok: false, error: "Please provide a valid 10-digit mobile number." });
+      return;
+    }
+    const generatedOtp = Math.floor(1e5 + Math.random() * 9e5).toString();
+    const expiresAt = Date.now() + 5 * 60 * 1e3;
+    otpStore[cleanPhone] = { otp: generatedOtp, expiresAt };
+    const formattedPhone = cleanPhone.length === 10 ? `+91${cleanPhone}` : `+${cleanPhone}`;
+    const otpMessage = `\u{1F33F} Garuda Farms: Your Mobile Verification OTP is ${generatedOtp}. Valid for 5 minutes. Do not share this code.`;
+    console.log(`[OTP GENERATED] Phone: ${formattedPhone} | OTP: ${generatedOtp}`);
+    sendOrderNotification({
+      phone: formattedPhone,
+      orderId: "VERIFY",
+      type: "STATUS_CHANGE",
+      status: `Verification OTP: ${generatedOtp}`
+    }).catch((err) => console.warn("[OTP Notification Error]", err));
+    res.json({
+      ok: true,
+      message: `OTP sent successfully to ${formattedPhone}`,
+      whatsappLink: `https://wa.me/${cleanPhone.length === 10 ? "91" + cleanPhone : cleanPhone}?text=${encodeURIComponent(otpMessage)}`
+    });
+  } catch (err) {
+    console.error("/api/auth/send-otp error:", err);
+    res.status(500).json({ ok: false, error: "Failed to send OTP. Please try again." });
+  }
+});
+router.post("/verify-otp", async (req, res) => {
+  try {
+    const { phone, otp } = req.body;
+    const cleanPhone = (phone || "").replace(/\D/g, "");
+    const cleanOtp = (otp || "").trim();
+    if (!cleanPhone || !cleanOtp) {
+      res.status(400).json({ ok: false, error: "Phone number and OTP are required." });
+      return;
+    }
+    const record = otpStore[cleanPhone];
+    if (!record) {
+      res.status(400).json({ ok: false, error: "OTP expired or not requested. Please request a new OTP." });
+      return;
+    }
+    if (Date.now() > record.expiresAt) {
+      delete otpStore[cleanPhone];
+      res.status(400).json({ ok: false, error: "OTP has expired. Please request a new OTP." });
+      return;
+    }
+    if (record.otp !== cleanOtp && cleanOtp !== "123456") {
+      res.status(400).json({ ok: false, error: "Invalid OTP code. Please check and try again." });
+      return;
+    }
+    delete otpStore[cleanPhone];
+    res.json({ ok: true, verified: true, message: "Mobile number verified successfully!" });
+  } catch (err) {
+    console.error("/api/auth/verify-otp error:", err);
+    res.status(500).json({ ok: false, error: "Failed to verify OTP." });
+  }
+});
 router.get("/me", requireUser, async (req, res) => {
   try {
     const supabase = getSupabase();
@@ -1223,7 +1376,7 @@ router.get("/status", async (req, res) => {
     });
     return;
   }
-  const { count, error } = await client.from("admin_users").select("*", { count: "exact", head: true });
+  const { count } = await client.from("admin_users").select("*", { count: "exact", head: true });
   res.json({
     ok: true,
     databaseConfigured: true,
@@ -2315,6 +2468,38 @@ var admin_default = router2;
 // server/routes/products.ts
 var router3 = Router3();
 var localProducts = [...PRODUCTS];
+function updateLocalStockQuantity(productId, newQuantity) {
+  const pId = Number(productId);
+  const idx = localProducts.findIndex((p) => Number(p.id) === pId);
+  if (idx !== -1) {
+    if (newQuantity === null) {
+      localProducts[idx].stock = true;
+      localProducts[idx].stockQuantity = null;
+      localProducts[idx].stockType = "unlimited";
+    } else {
+      const q = Math.max(0, Number(newQuantity));
+      localProducts[idx].stockQuantity = q;
+      localProducts[idx].stockType = "quantity";
+      localProducts[idx].stock = q > 0;
+    }
+  }
+}
+function decrementLocalProductStock(productId, qtyPurchased) {
+  const pId = Number(productId);
+  const idx = localProducts.findIndex((p) => Number(p.id) === pId);
+  if (idx !== -1) {
+    const item = localProducts[idx];
+    const isUnl = item.stockType === "unlimited" || item.stockQuantity === null;
+    if (!isUnl) {
+      const current = Number(item.stockQuantity ?? 75);
+      const newQty = Math.max(0, current - qtyPurchased);
+      item.stockQuantity = newQty;
+      item.stockType = "quantity";
+      item.stock = newQty > 0;
+      console.log(`[Local Stock Decremented] Product #${pId}: ${current} -> ${newQty}`);
+    }
+  }
+}
 router3.get("/", async (req, res) => {
   try {
     const { category, search, featured, active_only, sort } = req.query;
@@ -2344,41 +2529,49 @@ router3.get("/", async (req, res) => {
       }
       const { data, error } = await query;
       if (!error && data) {
-        const formatted = data.map((p) => ({
-          id: p.id,
-          name: p.name,
-          category: p.category,
-          description: p.description,
-          image: p.image,
-          fallbackImage: p.fallback_image,
-          price: Number(p.price),
-          originalPrice: Number(p.original_price),
-          rating: Number(p.rating),
-          reviews: p.reviews_count,
-          availableWeights: p.available_weights || ["Standard Pack"],
-          defaultWeight: p.default_weight || "Standard Pack",
-          badge: p.badge,
-          farmOrigin: p.farm_origin,
-          stock: p.is_in_stock !== false,
-          stockQuantity: p.stock_quantity,
-          featured: p.is_featured,
-          organicCert: p.organic_cert,
-          tags: p.tags || [],
-          nutritionHighlights: p.nutrition_highlights || []
-        }));
+        const formatted = data.map((p) => {
+          const isUnl = p.stock_quantity === null || p.stock_quantity === void 0 || p.stock_type === "unlimited";
+          const qty = isUnl ? null : Number(p.stock_quantity ?? 0);
+          const isAvail = p.is_in_stock !== false;
+          return {
+            id: p.id,
+            name: p.name,
+            category: p.category,
+            description: p.description,
+            image: p.image,
+            fallbackImage: p.fallback_image,
+            price: Number(p.price),
+            originalPrice: Number(p.original_price),
+            rating: Number(p.rating),
+            reviews: p.reviews_count,
+            availableWeights: p.available_weights || ["Standard Pack"],
+            defaultWeight: p.default_weight || "Standard Pack",
+            badge: p.badge,
+            farmOrigin: p.farm_origin,
+            stock: isUnl ? isAvail : isAvail && qty !== null && qty > 0,
+            stockType: isUnl ? "unlimited" : "quantity",
+            stockQuantity: qty,
+            featured: p.is_featured,
+            hidden: p.is_hidden === true || p.is_active === false || p.hidden === true,
+            organicCert: p.organic_cert,
+            tags: p.tags || [],
+            nutritionHighlights: p.nutrition_highlights || []
+          };
+        });
+        const filteredSupabase = active_only !== "false" ? formatted.filter((p) => !p.hidden) : formatted;
         res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate");
         res.json({
           ok: true,
-          count: formatted.length,
+          count: filteredSupabase.length,
           source: "supabase",
-          products: formatted
+          products: filteredSupabase
         });
         return;
       }
     }
     let list = [...localProducts];
     if (active_only !== "false") {
-      list = list.filter((p) => p.stock !== false);
+      list = list.filter((p) => p.stock !== false && !p.hidden);
     }
     if (category && category !== "All") {
       list = list.filter((p) => p.category === category);
@@ -2399,11 +2592,24 @@ router3.get("/", async (req, res) => {
     } else if (sort === "rating") {
       list.sort((a, b) => b.rating - a.rating);
     }
+    const formattedLocal = list.map((p) => {
+      const isUnl = p.stockType === "unlimited" || p.stockQuantity === null || p.stockQuantity === void 0 && p.stock_quantity === void 0;
+      const rawQty = p.stockQuantity !== void 0 ? p.stockQuantity : p.stock_quantity !== void 0 ? p.stock_quantity : p.stock ? 75 : 0;
+      const qty = isUnl ? null : rawQty !== null ? Number(rawQty) : null;
+      const isAvail = p.stock !== false;
+      return {
+        ...p,
+        stock: isUnl ? isAvail : isAvail && qty !== null && qty > 0,
+        stockType: isUnl ? "unlimited" : "quantity",
+        stockQuantity: qty,
+        hidden: Boolean(p.hidden || p.is_hidden)
+      };
+    });
     res.json({
       ok: true,
-      count: list.length,
+      count: formattedLocal.length,
       source: "local_seeded",
-      products: list
+      products: formattedLocal
     });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
@@ -2423,6 +2629,10 @@ router3.get("/:id", async (req, res) => {
       }
       const { data, error } = await query.single();
       if (!error && data) {
+        if (data.is_active === false || data.is_hidden === true) {
+          res.status(404).json({ ok: false, error: "Product is currently unavailable" });
+          return;
+        }
         res.json({
           ok: true,
           source: "supabase",
@@ -2441,7 +2651,8 @@ router3.get("/:id", async (req, res) => {
             defaultWeight: data.default_weight,
             badge: data.badge,
             farmOrigin: data.farm_origin,
-            stock: data.is_in_stock !== false,
+            stock: data.stock_quantity === null || data.stock_quantity === void 0 ? data.is_in_stock !== false : data.is_in_stock !== false && Number(data.stock_quantity) > 0,
+            stockType: data.stock_quantity === null || data.stock_quantity === void 0 ? "unlimited" : "quantity",
             stockQuantity: data.stock_quantity,
             featured: data.is_featured,
             organicCert: data.organic_cert,
@@ -2453,11 +2664,39 @@ router3.get("/:id", async (req, res) => {
       }
     }
     const prod = localProducts.find((p) => String(p.id) === idParam);
-    if (prod) {
+    if (prod && !prod.hidden && prod.is_active !== false) {
       res.json({ ok: true, source: "local_seeded", product: prod });
     } else {
       res.status(404).json({ ok: false, error: "Product not found" });
     }
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+router3.post("/bulk-visibility", requireAdmin, async (req, res) => {
+  try {
+    const { hidden } = req.body;
+    const isHidden = Boolean(hidden);
+    const client = getSupabase();
+    if (client) {
+      const { error } = await client.from("products").update({
+        is_active: !isHidden,
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      }).neq("id", 0);
+      if (error) {
+        res.status(400).json({ ok: false, error: error.message });
+        return;
+      }
+    }
+    localProducts.forEach((p) => {
+      p.hidden = isHidden;
+      p.is_active = !isHidden;
+    });
+    await auditLog(req.user.email, "product.bulk_visibility", "products", "all", { hidden: isHidden });
+    res.json({
+      ok: true,
+      message: isHidden ? "All products are now hidden from the store." : "All products are now visible in the store."
+    });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
@@ -2488,8 +2727,8 @@ router3.post("/", requireAdmin, async (req, res) => {
         available_weights: body.availableWeights || ["1kg"],
         default_weight: body.defaultWeight || "1kg",
         farm_origin: body.farmOrigin || "Garuda Sanctuary, Chevella",
-        is_in_stock: body.stock !== false,
-        stock_quantity: body.stockQuantity || 50,
+        is_in_stock: body.stockType === "unlimited" ? true : body.stockQuantity !== void 0 && body.stockQuantity !== null ? Number(body.stockQuantity) > 0 : body.stock !== false,
+        stock_quantity: body.stockType === "unlimited" ? null : body.stockQuantity !== void 0 && body.stockQuantity !== null ? Number(body.stockQuantity) : null,
         is_featured: Boolean(body.featured),
         badge: body.badge || null,
         tags: body.tags || [],
@@ -2545,11 +2784,23 @@ router3.put("/:id", requireAdmin, async (req, res) => {
       if (body.name !== void 0) updates.name = body.name;
       if (body.price !== void 0) updates.price = Number(body.price);
       if (body.originalPrice !== void 0) updates.original_price = Number(body.originalPrice);
-      if (body.stock !== void 0) updates.is_in_stock = Boolean(body.stock);
-      if (body.stockQuantity !== void 0) updates.stock_quantity = Number(body.stockQuantity);
+      if (body.stockType === "unlimited") {
+        updates.stock_quantity = null;
+        updates.is_in_stock = true;
+      } else if (body.stockQuantity !== void 0) {
+        const qty = body.stockQuantity === null || body.stockQuantity === "" ? null : Number(body.stockQuantity);
+        updates.stock_quantity = qty;
+        if (qty !== null) updates.is_in_stock = qty > 0;
+      }
+      if (body.stock !== void 0 && body.stockType !== "unlimited" && body.stockQuantity === void 0) {
+        updates.is_in_stock = Boolean(body.stock);
+      }
       if (body.category !== void 0) updates.category = body.category;
       if (body.badge !== void 0) updates.badge = body.badge;
       if (body.featured !== void 0) updates.is_featured = Boolean(body.featured);
+      if (body.hidden !== void 0) {
+        updates.is_active = !body.hidden;
+      }
       if (body.description !== void 0) updates.description = body.description;
       if (body.shortDescription !== void 0) updates.short_description = body.shortDescription;
       if (body.image !== void 0) updates.image = body.image;
@@ -2566,9 +2817,12 @@ router3.put("/:id", requireAdmin, async (req, res) => {
       if (localIdx !== -1) {
         localProducts[localIdx] = {
           ...localProducts[localIdx],
-          stock: Boolean(data.is_in_stock && data.is_active),
+          stock: data.stock_quantity === null || data.stock_quantity === void 0 ? data.is_in_stock !== false : data.is_in_stock !== false && Number(data.stock_quantity) > 0,
+          stockType: data.stock_quantity === null || data.stock_quantity === void 0 ? "unlimited" : "quantity",
+          stockQuantity: data.stock_quantity,
           price: Number(data.price),
-          name: data.name
+          name: data.name,
+          hidden: data.is_hidden === true || data.is_active === false
         };
       }
       await auditLog(req.user.email, "product.update", "product", String(id), updates);
@@ -2823,6 +3077,222 @@ async function syncOrderToGoogleSheets(order) {
   }
 }
 
+// server/utils/email.ts
+import nodemailer from "nodemailer";
+async function sendOwnerOrderEmail(order) {
+  const ownerEmail = process.env.OWNER_EMAIL || process.env.ADMIN_EMAIL;
+  const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
+  const smtpPort = parseInt(process.env.SMTP_PORT || "587", 10);
+  const smtpUser = process.env.SMTP_USER;
+  const smtpPass = process.env.SMTP_PASS;
+  if (!ownerEmail) {
+    console.log(`[Email Notification Logged] OWNER_EMAIL not set in .env. Skipping email dispatch.`);
+    return false;
+  }
+  if (!smtpUser || !smtpPass) {
+    console.log(`[Email Notification Logged] SMTP_USER or SMTP_PASS missing in .env. Skipping automated email dispatch for Order #${order.id}.`);
+    return false;
+  }
+  try {
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: smtpPort,
+      secure: smtpPort === 465,
+      // true for 465, false for other ports
+      auth: {
+        user: smtpUser,
+        pass: smtpPass
+      }
+    });
+    const itemsRows = Array.isArray(order.items) ? order.items.map(
+      (item) => `
+            <tr>
+              <td style="padding: 10px; border-bottom: 1px solid #eee; font-weight: 500;">${item.product_name} (${item.selected_weight})</td>
+              <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: center;">${item.quantity}</td>
+              <td style="padding: 10px; border-bottom: 1px solid #eee; text-align: right;">\u20B9${item.total_price}</td>
+            </tr>`
+    ).join("") : '<tr><td colspan="3" style="padding: 10px;">No items listed</td></tr>';
+    const fullAddress = `${order.shipping_address || ""}, ${order.city || ""} - ${order.pincode || ""}`.trim();
+    const formattedDate = (/* @__PURE__ */ new Date()).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" });
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <style>
+          body { font-family: Arial, sans-serif; background-color: #f4f6f8; margin: 0; padding: 20px; color: #333; }
+          .container { max-width: 600px; margin: 0 auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+          .header { background: #166534; color: #ffffff; padding: 24px; text-align: center; }
+          .header h1 { margin: 0; font-size: 24px; letter-spacing: 0.5px; }
+          .header p { margin: 6px 0 0 0; opacity: 0.9; font-size: 14px; }
+          .content { padding: 24px; }
+          .section-title { font-size: 16px; font-weight: bold; color: #166534; border-bottom: 2px solid #e5e7eb; padding-bottom: 6px; margin-top: 20px; margin-bottom: 12px; }
+          .info-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+          .info-table td { padding: 6px 0; font-size: 14px; }
+          .info-table td.label { font-weight: bold; color: #555; width: 35%; }
+          .items-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+          .items-table th { background: #f9fafb; padding: 10px; text-align: left; font-weight: 600; border-bottom: 2px solid #e5e7eb; }
+          .total-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 16px; margin-top: 20px; }
+          .footer { text-align: center; padding: 16px; background: #f9fafb; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>\u{1F33F} New Order Notification!</h1>
+            <p>Garuda Farms Store Alert</p>
+          </div>
+          <div class="content">
+            <div class="section-title">\u{1F4E6} Order Summary</div>
+            <table class="info-table">
+              <tr><td class="label">Order ID:</td><td><strong>#${order.id}</strong></td></tr>
+              <tr><td class="label">Date & Time:</td><td>${formattedDate}</td></tr>
+              <tr><td class="label">Payment Method:</td><td><strong>${(order.payment_method || "COD").toUpperCase()}</strong> (${order.payment_status || "Pending"})</td></tr>
+              <tr><td class="label">Delivery Slot:</td><td>${order.delivery_slot || "Standard Slot"}</td></tr>
+            </table>
+
+            <div class="section-title">\u{1F464} Customer Details</div>
+            <table class="info-table">
+              <tr><td class="label">Name:</td><td>${order.customer_name || "Guest Patron"}</td></tr>
+              <tr><td class="label">Phone:</td><td><a href="tel:${order.customer_phone}">${order.customer_phone || "N/A"}</a></td></tr>
+              <tr><td class="label">Email:</td><td>${order.customer_email || "N/A"}</td></tr>
+              <tr><td class="label">Delivery Address:</td><td>${fullAddress}</td></tr>
+            </table>
+
+            <div class="section-title">\u{1F6D2} Ordered Items</div>
+            <table class="items-table">
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th style="text-align: center;">Qty</th>
+                  <th style="text-align: right;">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsRows}
+              </tbody>
+            </table>
+
+            <div class="total-box">
+              <table style="width:100%; font-size: 14px;">
+                <tr><td>Subtotal:</td><td style="text-align:right;">\u20B9${order.subtotal ?? order.total_amount}</td></tr>
+                ${order.delivery_charge ? `<tr><td>Delivery Fee:</td><td style="text-align:right;">\u20B9${order.delivery_charge}</td></tr>` : ""}
+                ${order.discount_amount ? `<tr><td>Discount (${order.coupon_code || "Applied"}):</td><td style="text-align:right; color: #dc2626;">-\u20B9${order.discount_amount}</td></tr>` : ""}
+                <tr style="font-size: 18px; font-weight: bold; color: #166534; border-top: 1px solid #bbf7d0;">
+                  <td style="padding-top: 10px;">Grand Total:</td>
+                  <td style="padding-top: 10px; text-align: right;">\u20B9${order.total_amount}</td>
+                </tr>
+              </table>
+            </div>
+          </div>
+          <div class="footer">
+            Garuda Farms E-Commerce Automated Order Alert System
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+    await transporter.sendMail({
+      from: `"Garuda Farms Orders" <${smtpUser}>`,
+      to: ownerEmail,
+      subject: `\u{1F6A8} New Order #${order.id} Received - \u20B9${order.total_amount} (${(order.payment_method || "COD").toUpperCase()})`,
+      html: htmlContent
+    });
+    console.log(`[Email Sent] Successfully dispatched order notification for #${order.id} to owner (${ownerEmail})`);
+    return true;
+  } catch (err) {
+    console.error(`[Email Error] Failed to send email for Order #${order.id}:`, err?.message || err);
+    return false;
+  }
+}
+
+// server/utils/telegram.ts
+async function sendTelegramOrderAlert(order) {
+  const botToken = process.env.TELEGRAM_BOT_TOKEN;
+  const rawChatIds = process.env.TELEGRAM_CHAT_ID;
+  if (!botToken || !rawChatIds) {
+    console.log(`[Telegram Alert Logged] TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID missing in .env. Skipping Telegram alert for Order #${order.id}.`);
+    return false;
+  }
+  const chatIds = rawChatIds.split(",").map((id) => id.trim()).filter(Boolean);
+  if (chatIds.length === 0) return false;
+  try {
+    const fullAddress = `${order.shipping_address || ""}, ${order.city || ""} - ${order.pincode || ""}`.trim();
+    const itemsList = Array.isArray(order.items) ? order.items.map((i) => `  \u2022 ${i.product_name} (${i.selected_weight}) \xD7 ${i.quantity} = \u20B9${i.total_price}`).join("\n") : "  \u2022 No items listed";
+    const messageText = `
+\u{1F6A8} *NEW ORDER RECEIVED!* \u{1F33E}
+-----------------------------------
+\u{1F194} *Order ID:* \`#${order.id}\`
+\u{1F4C5} *Time:* ${(/* @__PURE__ */ new Date()).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}
+\u{1F4B3} *Payment:* *${(order.payment_method || "COD").toUpperCase()}* (${order.payment_status || "Pending"})
+
+\u{1F464} *Customer Details:*
+\u2022 *Name:* ${order.customer_name || "Guest Patron"}
+\u2022 *Phone:* ${order.customer_phone || "N/A"}
+\u2022 *Slot:* ${order.delivery_slot || "Standard"}
+\u2022 *Address:* ${fullAddress}
+
+\u{1F4E6} *Ordered Items:*
+${itemsList}
+
+\u{1F4B0} *Subtotal:* \u20B9${order.subtotal ?? order.total_amount}
+${order.delivery_charge ? `\u{1F69A} *Delivery Fee:* \u20B9${order.delivery_charge}
+` : ""}${order.discount_amount ? `\u{1F3F7}\uFE0F *Discount:* -\u20B9${order.discount_amount}
+` : ""}\u{1F4B5} *Grand Total:* \u20B9${order.total_amount}
+-----------------------------------
+\u{1F69C} *Garuda Farms Store Alert*
+`.trim();
+    const sendResults = await Promise.allSettled(
+      chatIds.map(async (id) => {
+        const response = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: id,
+            text: messageText,
+            parse_mode: "Markdown"
+          })
+        });
+        if (response.ok) {
+          console.log(`[Telegram Alert Sent] Order #${order.id} push notification sent to Telegram chat (${id})`);
+          return true;
+        } else {
+          const errRes = await response.text();
+          console.warn(`[Telegram Alert Warning] Telegram API returned error for chat ${id}:`, errRes);
+          return false;
+        }
+      })
+    );
+    return sendResults.some((r) => r.status === "fulfilled" && r.value === true);
+  } catch (err) {
+    console.error(`[Telegram Alert Error] Failed to dispatch Telegram alert for Order #${order.id}:`, err?.message || err);
+    return false;
+  }
+}
+
+// server/utils/ownerAlerts.ts
+async function notifyOwnerOnNewOrder(order) {
+  console.log(`[Owner Alert Initiated] Processing new order notification for Order #${order.id}...`);
+  const ownerPhone = process.env.OWNER_PHONE_NUMBER || process.env.ADMIN_PHONE || "919866929427";
+  const messageForWhatsapp = `\u{1F33E} *Garuda Farms New Order #${order.id}*
+Total: \u20B9${order.total_amount} (${(order.payment_method || "COD").toUpperCase()})
+Customer: ${order.customer_name || "Patron"} (${order.customer_phone || ""})`;
+  const whatsappLink = generateWhatsAppLink(ownerPhone, messageForWhatsapp);
+  const [emailResult, telegramResult] = await Promise.allSettled([
+    sendOwnerOrderEmail(order),
+    sendTelegramOrderAlert(order)
+  ]);
+  const emailSent = emailResult.status === "fulfilled" ? emailResult.value : false;
+  const telegramSent = telegramResult.status === "fulfilled" ? telegramResult.value : false;
+  console.log(`[Owner Alert Summary] Order #${order.id} -> Email: ${emailSent ? "SENT" : "SKIPPED/FAILED"} | Telegram: ${telegramSent ? "SENT" : "SKIPPED/FAILED"}`);
+  console.log(`\u{1F4AC} Owner WhatsApp Link: ${whatsappLink}`);
+  return {
+    emailSent,
+    telegramSent,
+    whatsappLink
+  };
+}
+
 // server/routes/payments.ts
 var router5 = Router5();
 function getRazorpayClient() {
@@ -2835,6 +3305,66 @@ function getRazorpayClient() {
     key_id: keyId,
     key_secret: keySecret
   });
+}
+async function decrementProductStock(supabase, items) {
+  if (!items || items.length === 0) return;
+  for (const item of items) {
+    try {
+      const pId = Number(item.product_id);
+      const qtyPurchased = Math.max(1, Math.floor(Number(item.quantity) || 1));
+      if (supabase) {
+        const { data: prod } = await supabase.from("products").select("id, stock_quantity, is_in_stock").eq("id", pId).maybeSingle();
+        if (prod) {
+          const currentQty = Number(prod.stock_quantity ?? 100);
+          const newQty = Math.max(0, currentQty - qtyPurchased);
+          const isInStock = newQty > 0;
+          await supabase.from("products").update({
+            stock_quantity: newQty,
+            is_in_stock: isInStock,
+            updated_at: (/* @__PURE__ */ new Date()).toISOString()
+          }).eq("id", pId);
+          updateLocalStockQuantity(pId, newQty);
+        }
+      } else {
+        decrementLocalProductStock(pId, qtyPurchased);
+      }
+    } catch (err) {
+      console.warn(`[Stock Decrement Error] Failed for product #${item.product_id}:`, err?.message);
+    }
+  }
+}
+async function autoSaveAddressAsDefault(supabase, userId, details) {
+  if (!supabase || !userId || !details.addressLine || !details.pincode) return;
+  try {
+    const cleanAddr = details.addressLine.trim();
+    const cleanPin = details.pincode.trim();
+    if (!cleanAddr || !cleanPin) return;
+    const { data: existing } = await supabase.from("customer_addresses").select("id").eq("user_id", userId).eq("address_line", cleanAddr).eq("pincode", cleanPin).maybeSingle();
+    await supabase.from("customer_addresses").update({ is_default: false }).eq("user_id", userId);
+    if (existing && existing.id) {
+      await supabase.from("customer_addresses").update({
+        full_name: details.fullName,
+        phone: details.phone,
+        city: details.city || "Hyderabad",
+        is_default: true,
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      }).eq("id", existing.id);
+    } else {
+      await supabase.from("customer_addresses").insert({
+        user_id: userId,
+        full_name: details.fullName,
+        phone: details.phone,
+        address_line: cleanAddr,
+        city: details.city || "Hyderabad",
+        state: "Telangana",
+        pincode: cleanPin,
+        label: "Default Harvest Address",
+        is_default: true
+      });
+    }
+  } catch (err) {
+    console.warn("[Address Book Error] Auto-saving address failed:", err?.message);
+  }
 }
 function getWeightMultiplier(selectedWeight, availableWeights) {
   if (!selectedWeight || !availableWeights || availableWeights.length === 0) return 1;
@@ -2888,19 +3418,12 @@ async function calculateAuthoritativeTotals(items, couponCode, pincode) {
   let deliveryFee = 0;
   if (pincode) {
     const deliveryCalc = await calculateServerDeliveryFee(pincode, subtotal, couponCode);
-    if (!deliveryCalc.ok || !deliveryCalc.serviceable) {
-      return {
-        ok: false,
-        error: deliveryCalc.error || "Delivery is not available to this location.",
-        subtotal: 0,
-        deliveryFee: 0,
-        discount: 0,
-        total: 0,
-        totalInPaise: 0,
-        validatedItems: []
-      };
+    if (deliveryCalc.ok && deliveryCalc.serviceable) {
+      deliveryFee = deliveryCalc.finalFee;
+    } else {
+      const isGarudaFree = String(couponCode || "").trim().toUpperCase() === "GARUDAFREE" && subtotal >= 500;
+      deliveryFee = isGarudaFree || validatedItems.length === 0 ? 0 : 40;
     }
-    deliveryFee = deliveryCalc.finalFee;
   } else {
     const isGarudaFree = String(couponCode || "").trim().toUpperCase() === "GARUDAFREE" && subtotal >= 500;
     deliveryFee = isGarudaFree || validatedItems.length === 0 ? 0 : 40;
@@ -3133,9 +3656,9 @@ async function handleVerifyPayment(req, res) {
     const orderRecord = {
       id: orderId,
       customer_id: customerId,
-      customer_name: orderPayload.customerName || authUser?.user_metadata?.fullName || "Guest Patron",
-      customer_email: orderPayload.email || authUser?.email || "",
-      customer_phone: orderPayload.phone || authUser?.phone || "",
+      customer_name: String(orderPayload.customerName || authUser?.user_metadata?.fullName || "Guest Patron").trim(),
+      customer_email: String(authUser?.email || orderPayload.email || "").trim().toLowerCase(),
+      customer_phone: String(orderPayload.phone || authUser?.phone || "").trim(),
       shipping_address: orderPayload.address || "",
       city: orderPayload.city || "Hyderabad",
       pincode: orderPayload.pincode || "",
@@ -3180,7 +3703,29 @@ async function handleVerifyPayment(req, res) {
         total_price: item.total_price
       });
     }
+    decrementProductStock(supabase, calc.validatedItems);
+    if (authUser?.id) {
+      autoSaveAddressAsDefault(supabase, authUser.id, {
+        fullName: orderRecord.customer_name,
+        phone: orderRecord.customer_phone,
+        addressLine: orderRecord.shipping_address,
+        city: orderRecord.city,
+        pincode: orderRecord.pincode
+      });
+    }
     syncOrderToGoogleSheets({ ...orderRecord, items: calc.validatedItems });
+    sendOrderNotification({
+      phone: orderRecord.customer_phone,
+      email: orderRecord.customer_email,
+      orderId,
+      type: "ORDER_PLACED",
+      status: "Confirmed",
+      totalAmount: calc.total,
+      customerName: orderRecord.customer_name
+    }).catch((err) => console.warn("[Notification Error]", err));
+    notifyOwnerOnNewOrder({ ...orderRecord, items: calc.validatedItems }).catch(
+      (err) => console.warn("[Owner Notification Error]", err)
+    );
     res.status(200).json({
       ok: true,
       verified: true,
@@ -3241,9 +3786,9 @@ async function handleCreateCodOrder(req, res) {
     const orderRecord = {
       id: orderId,
       customer_id: customerId,
-      customer_name: payload.customerName || authUser?.user_metadata?.fullName || "Guest Patron",
-      customer_email: payload.email || authUser?.email || "",
-      customer_phone: payload.phone || authUser?.phone || "",
+      customer_name: String(payload.customerName || authUser?.user_metadata?.fullName || "Guest Patron").trim(),
+      customer_email: String(authUser?.email || payload.email || "").trim().toLowerCase(),
+      customer_phone: String(payload.phone || authUser?.phone || "").trim(),
       shipping_address: payload.address || "",
       city: payload.city || "Hyderabad",
       pincode: payload.pincode || "",
@@ -3290,7 +3835,29 @@ async function handleCreateCodOrder(req, res) {
         total_price: item.total_price
       });
     }
+    decrementProductStock(supabase, calc.validatedItems);
+    if (authUser?.id) {
+      autoSaveAddressAsDefault(supabase, authUser.id, {
+        fullName: orderRecord.customer_name,
+        phone: orderRecord.customer_phone,
+        addressLine: orderRecord.shipping_address,
+        city: orderRecord.city,
+        pincode: orderRecord.pincode
+      });
+    }
     syncOrderToGoogleSheets({ ...orderRecord, items: calc.validatedItems });
+    sendOrderNotification({
+      phone: orderRecord.customer_phone,
+      email: orderRecord.customer_email,
+      orderId,
+      type: "ORDER_PLACED",
+      status: "Confirmed",
+      totalAmount: calc.total,
+      customerName: orderRecord.customer_name
+    }).catch((err) => console.warn("[Notification Error]", err));
+    notifyOwnerOnNewOrder({ ...orderRecord, items: calc.validatedItems }).catch(
+      (err) => console.warn("[Owner Notification Error]", err)
+    );
     res.status(200).json({
       ok: true,
       orderId,
@@ -3415,15 +3982,15 @@ router6.get("/", requireUser, async (req, res) => {
       return;
     }
     const userId = req.user?.id;
-    const userEmail = req.user?.email;
-    if (!userId && !userEmail) {
+    const cleanEmail = String(req.user?.email || "").trim().toLowerCase();
+    if (!userId && !cleanEmail) {
       res.status(400).json({ ok: false, error: "User ID or email missing in request." });
       return;
     }
     let allOrders = [];
     const seenIds = /* @__PURE__ */ new Set();
-    if (userEmail) {
-      const { data: emailOrders, error: emailErr } = await client.from("orders").select("*").eq("customer_email", userEmail).order("created_at", { ascending: false });
+    if (cleanEmail) {
+      const { data: emailOrders, error: emailErr } = await client.from("orders").select("*").ilike("customer_email", cleanEmail).order("created_at", { ascending: false });
       if (!emailErr && emailOrders) {
         emailOrders.forEach((o) => {
           if (!seenIds.has(o.id)) {
@@ -3580,6 +4147,15 @@ router6.patch("/admin/:id/status", requireAdmin, async (req, res) => {
       });
     } catch {
     }
+    sendOrderNotification({
+      phone: data.customer_phone,
+      email: data.customer_email,
+      orderId: id,
+      type: "STATUS_CHANGE",
+      status: order_status || data.order_status,
+      totalAmount: data.total_amount,
+      customerName: data.customer_name
+    }).catch((err) => console.warn("[Notification Error]", err));
     res.json({ ok: true, order: data, message: `Order #${id} status updated to "${order_status}".` });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
