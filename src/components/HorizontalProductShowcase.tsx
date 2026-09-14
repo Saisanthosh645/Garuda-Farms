@@ -21,12 +21,12 @@ export const HorizontalProductShowcase: React.FC<HorizontalProductShowcaseProps>
   // Use live API products from App.tsx — never fall back to static data
   const sourceProducts = Array.isArray(products) ? products : [];
 
-  // Pick top signature items: featured flag first, then known showcase IDs
-  const featuredShowcase = sourceProducts.filter(
-    (p) => !p.hidden && (p.featured || [1, 6, 11, 19, 23, 27, 31, 34, 39, 43, 47, 49].includes(p.id))
-  );
+  // Pick top signature items: featured flag first, or all active store items if small catalog
+  const activeProducts = sourceProducts.filter((p) => !p.hidden);
+  const featuredShowcase = activeProducts.filter((p) => p.featured);
+  const showcaseList = featuredShowcase.length > 0 ? featuredShowcase : activeProducts.slice(0, 8);
 
-  if (featuredShowcase.length === 0) return null;
+  if (showcaseList.length === 0) return null;
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollContainerRef.current) {
@@ -91,7 +91,7 @@ export const HorizontalProductShowcase: React.FC<HorizontalProductShowcaseProps>
         ref={scrollContainerRef}
         className="flex gap-6 overflow-x-auto px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto pb-6 pt-2 no-scrollbar scroll-smooth snap-x snap-mandatory"
       >
-        {featuredShowcase.map((product) => (
+        {showcaseList.map((product) => (
           <motion.div
             key={product.id}
             data-cursor="product"

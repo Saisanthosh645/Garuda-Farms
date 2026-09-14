@@ -39,7 +39,6 @@ import { FloatingLeaves } from './components/FloatingLeaves';
 import { ScrollProgress } from './components/ScrollProgress';
 
 // Data & Types
-import { PRODUCTS } from './data/products';
 import { Product, CartItem, ProductCategory } from './types';
 import { api } from './lib/api';
 import LoginPage from './pages/Auth/Login';

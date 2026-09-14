@@ -181,7 +181,7 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
         {/* Results Counter Info */}
         <div className="flex items-center justify-between text-xs font-semibold text-[#556960] mb-6">
           <span>
-            Showing <strong className="text-[#0F2D1F]">{filteredProducts.length}</strong> of 50 Farm Harvests
+            Showing <strong className="text-[#0F2D1F]">{filteredProducts.length}</strong> of {catalogProducts.length} Farm Harvests
             {selectedCategory !== 'All' && ` in ${selectedCategory}`}
           </span>
           {(searchQuery || selectedCategory !== 'All' || organicOnly) && (
@@ -245,7 +245,7 @@ export const ProductCatalog: React.FC<ProductCatalogProps> = ({
               }}
               className="px-6 py-3 rounded-full bg-[#2D6A4F] text-[#FAF8F2] text-xs font-bold tracking-widest uppercase hover:bg-[#1B4332]"
             >
-              Show All 50 Products
+              Show All Products
             </button>
           </div>
         )}

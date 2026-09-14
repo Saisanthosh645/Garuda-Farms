@@ -1,5 +1,5 @@
 import { Product, ProductCategory } from '../types';
-import { PRODUCTS, CATEGORIES } from '../data/products';
+import { CATEGORIES } from '../data/products';
 
 export interface HealthCheckResponse {
   status: string;
@@ -128,11 +128,9 @@ export const api = {
       const res = await fetch(`/api/products?${searchParams.toString()}`);
       if (!res.ok) throw new Error('API request failed');
       const data = await res.json();
-      // Return API data (even if empty — empty means admin hid all products)
-      return Array.isArray(data.products) ? data.products : PRODUCTS;
+      return Array.isArray(data.products) ? data.products : [];
     } catch {
-      // Only use static fallback on genuine network failure
-      return PRODUCTS;
+      return [];
     }
   },
 

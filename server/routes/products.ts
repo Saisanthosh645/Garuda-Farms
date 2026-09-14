@@ -1,14 +1,13 @@
 import { Router, Request, Response } from 'express';
 import { getSupabase } from '../db/supabase';
 import { requireAdmin } from '../middleware/auth';
-import { PRODUCTS } from '../../src/data/products';
 import { slugify } from '../db/seed';
 import { auditLog } from './admin';
 
 const router = Router();
 
-// In-memory runtime cache/mirror of the 50 products when Supabase is not connected
-let localProducts = [...PRODUCTS];
+// In-memory runtime cache/mirror when Supabase is not connected
+let localProducts: any[] = [];
 
 export function updateLocalStockQuantity(productId: number | string, newQuantity: number | null) {
   const pId = Number(productId);

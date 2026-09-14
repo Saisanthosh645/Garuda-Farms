@@ -187,7 +187,7 @@ export const OrdersPage: React.FC = () => {
           <Package className="w-12 h-12 text-[#8C6239] mx-auto opacity-60" />
           <h3 className="font-heading text-lg font-bold text-[#0F2D1F]">No orders placed yet</h3>
           <p className="text-xs text-[#556960] max-w-sm mx-auto">
-            Browse our 50 single-origin A2 milk, ghee, cold-pressed oils, and organic harvests to place your first order.
+            Browse our fresh single-origin A2 milk, ghee, cold-pressed oils, and organic harvests to place your first order.
           </p>
         </div>
       )}
