@@ -654,6 +654,15 @@ export const api = {
   },
 
   // Store Settings
+  async getPublicSettings(): Promise<{ ok: boolean; settings?: Record<string, any>; error?: string }> {
+    try {
+      const res = await fetch('/api/admin/store-settings/public');
+      return res.json();
+    } catch (err: any) {
+      return { ok: false, error: err.message };
+    }
+  },
+
   async getStoreSettings(): Promise<{ ok: boolean; settings?: Record<string, any>; error?: string }> {
     const headers = await getAuthHeader();
     try {

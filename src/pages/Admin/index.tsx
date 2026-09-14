@@ -6,13 +6,14 @@ import { signOut } from '../../lib/frontendAuth';
 import { useAuth } from '../../auth/AuthProvider';
 import SproutLoader from '../../components/SproutLoader';
 import { InvoiceModal } from '../../components/InvoiceModal';
+import GrandOpeningCurtain from '../../components/GrandOpeningCurtain';
 import {
   LayoutDashboard, Package, Layers, ShoppingBag, Users, Tag, Home, Settings,
   LogOut, RefreshCw, Plus, Edit2, Trash2, Eye, EyeOff, Search, Filter, Check, X,
   AlertCircle, CheckCircle2, Upload, Image, ToggleLeft, ToggleRight,
   ChevronDown, ChevronUp, ArrowLeft, IndianRupee, TrendingUp, Clock,
   Truck, Star, Shield, Activity, BarChart3, Bell, Save, RotateCcw,
-  ExternalLink, FileText, Lock, Menu
+  ExternalLink, FileText, Lock, Menu, Sparkles
 } from 'lucide-react';
 
 // ─── Admin Allowlist (frontend guard — mirrors server-side ADMIN_ALLOWLIST) ────
@@ -2169,6 +2170,7 @@ function StoreSettingsSection({ toast }: { toast: ReturnType<typeof useToast> })
   const [saving, setSaving] = useState(false);
   const [testingSheet, setTestingSheet] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [previewCurtain, setPreviewCurtain] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -2214,6 +2216,88 @@ function StoreSettingsSection({ toast }: { toast: ReturnType<typeof useToast> })
 
   return (
     <div className="space-y-6 max-w-2xl">
+      {/* 🎭 Grand Opening Theater Mode */}
+      <div className="bg-gradient-to-br from-[#0F2D1F] via-[#1B4332] to-[#071911] text-white rounded-2xl border border-[#D4AF37]/50 p-5 shadow-xl space-y-4 relative overflow-hidden">
+        <div className="absolute -top-12 -right-12 w-40 h-40 bg-[#D4AF37]/10 rounded-full blur-2xl pointer-events-none" />
+
+        <div className="flex items-center justify-between border-b border-[#D4AF37]/30 pb-3">
+          <div>
+            <h3 className="font-black text-white text-base flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-[#FFE58F] animate-pulse" />
+              🎭 Grand Opening Curtain Mode
+            </h3>
+            <p className="text-xs text-stone-300 mt-1">
+              When turned ON, visitors opening the store experience a dramatic curtain reveal with celebratory confetti.
+            </p>
+          </div>
+          <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
+            settings.grand_opening_active
+              ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+              : 'bg-stone-800/80 text-stone-400 border border-stone-700'
+          }`}>
+            {settings.grand_opening_active ? '🟢 ACTIVE' : '⚪ OFF'}
+          </span>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-1">
+          <div className="space-y-1">
+            <div className="text-sm font-bold text-[#FFE58F]">
+              Status: {settings.grand_opening_active ? 'Active — Everyone sees the Curtain Reveal' : 'Disabled — Normal store view'}
+            </div>
+            <p className="text-[11px] text-stone-300/80">
+              Press G anytime while viewing to test the curtain animation.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setPreviewCurtain(true)}
+              className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-1.5 border border-white/20"
+            >
+              <Eye className="w-4 h-4 text-[#FFE58F]" />
+              Preview
+            </button>
+
+            <button
+              type="button"
+              onClick={async () => {
+                const nextVal = !settings.grand_opening_active;
+                update('grand_opening_active', nextVal);
+                const res = await api.updateStoreSettings({ ...settings, grand_opening_active: nextVal });
+                if (res.ok) {
+                  toast.show('success', nextVal ? '🎉 Grand Opening Mode ACTIVATED!' : 'Grand Opening Mode deactivated.');
+                  setDirty(false);
+                } else {
+                  toast.show('error', res.error || 'Failed to update setting');
+                }
+              }}
+              className={`px-5 py-2.5 rounded-xl font-black text-xs transition-all shadow-lg flex items-center gap-2 ${
+                settings.grand_opening_active
+                  ? 'bg-red-500/90 hover:bg-red-600 text-white border border-red-400'
+                  : 'bg-gradient-to-r from-[#D4AF37] to-[#E2C775] text-[#071911] hover:scale-105 active:scale-95 border border-[#FFF5C0]'
+              }`}
+            >
+              {settings.grand_opening_active ? (
+                <>
+                  <ToggleRight className="w-4 h-4" />
+                  TURN OFF
+                </>
+              ) : (
+                <>
+                  <ToggleLeft className="w-4 h-4" />
+                  ACTIVATE GRAND OPENING
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        {previewCurtain && (
+          <GrandOpeningCurtain isTestPreview onClose={() => setPreviewCurtain(false)} />
+        )}
+      </div>
+
       <div className="bg-white rounded-2xl border border-stone-200 p-5 shadow-sm space-y-4">
         <h3 className="font-bold text-stone-800 text-sm border-b border-stone-100 pb-3">Store Information</h3>
         <Field label="Store Name" k="store_name" />

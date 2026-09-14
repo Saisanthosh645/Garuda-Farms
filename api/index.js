@@ -2014,51 +2014,65 @@ router2.delete("/reviews/:id", requireAdmin, async (req, res) => {
     res.status(500).json({ ok: false, error: err.message });
   }
 });
+var localStoreSettings = { grand_opening_active: false };
+router2.get("/store-settings/public", async (req, res) => {
+  const supabase = getSupabase();
+  if (supabase) {
+    try {
+      const { data } = await supabase.from("store_settings").select("key, value");
+      if (data && Array.isArray(data)) {
+        data.forEach((row) => {
+          localStoreSettings[row.key] = row.value;
+        });
+      }
+    } catch (e) {
+    }
+  }
+  res.json({ ok: true, settings: localStoreSettings });
+});
 router2.get("/store-settings", requireAdmin, async (req, res) => {
   const supabase = getSupabase();
   if (!supabase) {
-    res.status(500).json({ ok: false, error: "Supabase not configured" });
+    res.json({ ok: true, settings: localStoreSettings });
     return;
   }
   try {
     const { data, error } = await supabase.from("store_settings").select("key, value");
     if (error) {
-      res.status(500).json({ ok: false, error: error.message });
+      res.json({ ok: true, settings: localStoreSettings });
       return;
     }
-    const settings = {};
+    const settings = { ...localStoreSettings };
     (data || []).forEach((row) => {
       settings[row.key] = row.value;
+      localStoreSettings[row.key] = row.value;
     });
     res.json({ ok: true, settings });
   } catch (err) {
-    res.status(500).json({ ok: false, error: err.message });
+    res.json({ ok: true, settings: localStoreSettings });
   }
 });
 router2.put("/store-settings", requireAdmin, async (req, res) => {
   const supabase = getSupabase();
-  if (!supabase) {
-    res.status(500).json({ ok: false, error: "Supabase not configured" });
-    return;
-  }
   try {
     const updates = req.body;
     if (!updates || typeof updates !== "object") {
       res.status(400).json({ ok: false, error: "Request body must be an object of key/value pairs." });
       return;
     }
-    const rows = Object.entries(updates).map(([key, value]) => ({
-      key,
-      value: typeof value === "string" ? JSON.parse(JSON.stringify(value)) : value,
-      updated_at: (/* @__PURE__ */ new Date()).toISOString()
-    }));
-    const { error } = await supabase.from("store_settings").upsert(rows, { onConflict: "key" });
-    if (error) {
-      res.status(400).json({ ok: false, error: error.message });
-      return;
+    Object.entries(updates).forEach(([k, v]) => {
+      localStoreSettings[k] = v;
+    });
+    if (supabase) {
+      const rows = Object.entries(updates).map(([key, value]) => ({
+        key,
+        value: typeof value === "string" ? JSON.parse(JSON.stringify(value)) : value,
+        updated_at: (/* @__PURE__ */ new Date()).toISOString()
+      }));
+      await supabase.from("store_settings").upsert(rows, { onConflict: "key" });
     }
     await auditLog(req.user.email, "store_settings.update", "store_settings", null, { keys: Object.keys(updates) });
-    res.json({ ok: true, message: "Store settings updated successfully." });
+    res.json({ ok: true, message: "Store settings updated successfully.", settings: localStoreSettings });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }

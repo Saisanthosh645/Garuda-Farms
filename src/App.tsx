@@ -22,6 +22,7 @@ import { ProductModal } from './components/ProductModal';
 import { CartDrawer } from './components/CartDrawer';
 import { WishlistDrawer } from './components/WishlistDrawer';
 import { SearchModal } from './components/SearchModal';
+import GrandOpeningCurtain from './components/GrandOpeningCurtain';
 // CheckoutModal and AdminPanel are lazy-loaded — not bundled in the initial chunk
 const CheckoutModal = lazy(() => import('./components/CheckoutModal').then(m => ({ default: m.CheckoutModal })));
 
@@ -65,6 +66,7 @@ function isAdminUser(email?: string | null): boolean {
 export default function App() {
   const auth = useAuth();
   const [isLoading, setIsLoading] = useState(true);
+  const [showGrandOpening, setShowGrandOpening] = useState(false);
   // Live products from API — single source of truth for the entire storefront
   // null = API not yet loaded (don't show anything yet)
   const [liveProducts, setLiveProducts] = useState<Product[] | null>(null);
@@ -87,6 +89,16 @@ export default function App() {
   // Initial product load + visibility-aware polling + real-time cross-tab event listeners
   useEffect(() => {
     refreshProducts();
+
+    // Check Grand Opening mode
+    (async () => {
+      try {
+        const res = await api.getPublicSettings();
+        if (res.ok && res.settings?.grand_opening_active) {
+          setShowGrandOpening(true);
+        }
+      } catch (e) {}
+    })();
 
     // Poll every 30s (was 3s) — admin changes still propagate instantly via storage events
     let pollInterval: ReturnType<typeof setInterval> | null = setInterval(refreshProducts, 30_000);
@@ -936,6 +948,11 @@ export default function App() {
           setIsCheckoutOpen(true);
         }}
       />
+
+      {/* 🎭 Grand Opening Theater Curtain Reveal Overlay */}
+      {showGrandOpening && (
+        <GrandOpeningCurtain onClose={() => setShowGrandOpening(false)} />
+      )}
     </div>
   );
 }
