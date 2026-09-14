@@ -240,8 +240,8 @@ export const OrdersPage: React.FC = () => {
 
                 {order.items && order.items.length > 0 ? (
                   <div className="divide-y divide-[#EFE8DC] bg-[#FAF8F2] rounded-xl p-3 border border-[#E5DEC9]">
-                    {order.items.map((item) => (
-                      <div key={item.id} className="py-2 flex items-center justify-between text-xs text-[#0F2D1F]">
+                    {order.items.map((item, idx) => (
+                      <div key={item.id || `item-${idx}`} className="py-2 flex items-center justify-between text-xs text-[#0F2D1F]">
                         <div>
                           <strong className="font-semibold">{item.product_name}</strong>
                           <span className="text-[11px] text-[#556960] block">

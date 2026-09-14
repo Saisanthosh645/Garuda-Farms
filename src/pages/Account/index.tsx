@@ -1005,8 +1005,8 @@ const mergeLocalOrders = (serverOrders: any[], currentUserEmail?: string): any[]
                               {(order.items || []).length === 0 ? (
                                 <p className="text-[#556960] text-center py-2">No item details available</p>
                               ) : (
-                                (order.items || []).map((it: any) => (
-                                  <div key={it.id} className="flex items-center justify-between text-[#0F2D1F]">
+                                (order.items || []).map((it: any, idx: number) => (
+                                  <div key={it.id || `item-${idx}`} className="flex items-center justify-between text-[#0F2D1F]">
                                     <span><strong>{it.product_name}</strong> ({it.selected_weight}) × {it.quantity}</span>
                                     <strong className="font-bold">₹{Number(it.total_price).toFixed(2)}</strong>
                                   </div>
@@ -1730,8 +1730,8 @@ const mergeLocalOrders = (serverOrders: any[], currentUserEmail?: string): any[]
                 {(selectedOrder.items || []).length === 0 ? (
                   <p className="text-[#556960] text-center py-2">No item details available</p>
                 ) : (
-                  (selectedOrder.items || []).map((it: any) => (
-                    <div key={it.id} className="py-2 flex items-center justify-between">
+                  (selectedOrder.items || []).map((it: any, idx: number) => (
+                    <div key={it.id || `item-${idx}`} className="py-2 flex items-center justify-between">
                       <div>
                         <strong className="font-bold text-[#0F2D1F]">{it.product_name}</strong>
                         <span className="text-[11px] text-[#556960] block">Variant: {it.selected_weight} • Qty: {it.quantity}</span>

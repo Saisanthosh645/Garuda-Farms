@@ -991,9 +991,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
                         Order Items ({items.length})
                       </span>
                       <div className="max-h-28 overflow-y-auto space-y-1.5 pr-1">
-                        {items.map((item) => (
+                        {items.map((item, idx) => (
                           <div
-                            key={item.id}
+                            key={item.id || `item-${idx}`}
                             className="flex items-center justify-between text-xs text-[#556960]"
                           >
                             <span className="truncate max-w-[200px]">

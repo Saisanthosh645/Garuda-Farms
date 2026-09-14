@@ -437,8 +437,8 @@ export const TrackOrderModal: React.FC<TrackOrderModalProps> = ({
                       Harvest Items in Package ({matchedOrder.items.length})
                     </h4>
                     <div className="divide-y divide-stone-100">
-                      {matchedOrder.items.map((item: any) => (
-                        <div key={item.id} className="py-2 flex items-center justify-between text-xs">
+                      {matchedOrder.items.map((item: any, idx: number) => (
+                        <div key={item.id || `item-${idx}`} className="py-2 flex items-center justify-between text-xs">
                           <div>
                             <p className="font-extrabold text-[#0F2D1F]">{item.product_name}</p>
                             <p className="text-[10px] text-[#556960]">
