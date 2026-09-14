@@ -1650,14 +1650,25 @@ router2.get("/analytics", requireAdmin, async (req, res) => {
     const startDate = /* @__PURE__ */ new Date();
     startDate.setDate(startDate.getDate() - days);
     startDate.setHours(0, 0, 0, 0);
-    const [ordersRes, productsRes, categoriesRes] = await Promise.all([
-      supabase.from("orders").select("id, customer_email, total_amount, payment_status, payment_method, order_status, created_at, items"),
+    const [ordersRes, orderItemsRes, productsRes, categoriesRes] = await Promise.all([
+      supabase.from("orders").select("id, customer_email, total_amount, payment_status, payment_method, order_status, created_at"),
+      supabase.from("order_items").select("order_id, product_name, selected_weight, unit_price, quantity, total_price"),
       supabase.from("products").select("id, name, category, price, is_in_stock, is_active"),
       supabase.from("categories").select("id, name")
     ]);
-    const orders = ordersRes.data || [];
+    const rawOrders = ordersRes.data || [];
+    const orderItems = orderItemsRes.data || [];
     const products = productsRes.data || [];
     const categories = categoriesRes.data || [];
+    const itemsByOrderId = {};
+    orderItems.forEach((it) => {
+      if (!itemsByOrderId[it.order_id]) itemsByOrderId[it.order_id] = [];
+      itemsByOrderId[it.order_id].push(it);
+    });
+    const orders = rawOrders.map((o) => ({
+      ...o,
+      items: o.items || itemsByOrderId[o.id] || []
+    }));
     const trendMap = /* @__PURE__ */ new Map();
     for (let i = days - 1; i >= 0; i--) {
       const d = /* @__PURE__ */ new Date();
